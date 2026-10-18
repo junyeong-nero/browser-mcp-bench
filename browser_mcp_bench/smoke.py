@@ -1,0 +1,232 @@
+"""One paired smoke run using private Firefox/bridge resources, not a benchmark."""
+
+from __future__ import annotations
+
+from contextlib import ExitStack
+from collections.abc import Callable
+from dataclasses import replace
+from datetime import datetime, timezone
+import hashlib
+import json
+import os
+from pathlib import Path
+import secrets
+import shutil
+import socket
+import subprocess
+import tempfile
+import time
+import urllib.error
+import urllib.request
+import uuid
+
+from .adapter import PINNED_CODEX_VERSION, preflight, resolve, run, terminate_group, write_json
+from .runtime import codex_environment
+from .resources import ResourceCollector, ResourceRoot
+from .specs import Server, Task, identifier, load_task, positive_int
+
+ROOT = Path(__file__).resolve().parent.parent
+WS_SETTING = "const WS_URL = 'ws://127.0.0.1:47652';"
+
+
+def copy_extension(source: Path, destination: Path, ws_port: int) -> dict:
+    """Only alter the private extension copy's endpoint; leave source untouched."""
+    if not 1024 <= ws_port <= 65535 or ws_port == 47652:
+        raise ValueError("Smoke extension requires a non-default unprivileged WS port.")
+    script = source / "background/background.js"
+    original = script.read_text()
+    if original.count(WS_SETTING) != 1:
+        raise ValueError("Unexpected Kitsune extension endpoint; review the copy patch.")
+    shutil.copytree(source, destination)
+    patched = original.replace(WS_SETTING, f"const WS_URL = 'ws://127.0.0.1:{ws_port}';")
+    (destination / "background/background.js").write_text(patched)
+    return {
+        "change": "WS_URL only in private copy",
+        "original_background_sha256": hashlib.sha256(original.encode()).hexdigest(),
+        "patched_background_sha256": hashlib.sha256(patched.encode()).hexdigest(),
+        "ws_port": ws_port,
+    }
+
+
+def private_ports() -> tuple[int, int]:
+    with socket.socket() as http, socket.socket() as ws:
+        http.bind(("127.0.0.1", 0))
+        ws.bind(("127.0.0.1", 0))
+        ports = (http.getsockname()[1], ws.getsockname()[1])
+    if any(p in {47651, 47652} for p in ports):
+        return private_ports()
+    return ports
+
+
+def bridge_status(port: int, token: str) -> dict | None:
+    request = urllib.request.Request(f"http://127.0.0.1:{port}/api/status",
+                                     headers={"Authorization": "Bearer " + token})
+    try:
+        # A proxy must never receive the test bridge's bearer token.
+        with urllib.request.build_opener(urllib.request.ProxyHandler({})).open(request, timeout=1) as response:
+            return json.load(response)
+    except (OSError, ValueError, urllib.error.URLError):
+        return None
+
+
+def await_bridge(port: int, token: str, process: subprocess.Popen,
+                 *, extension: bool = False, timeout: int = 40) -> dict:
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if process.poll() is not None:
+            raise ValueError("Test browser/bridge exited; inspect private setup logs.")
+        status = bridge_status(port, token)
+        if status and (not extension or status.get("extension_connected")):
+            return status
+        time.sleep(0.25)
+    raise ValueError("Timed out waiting for isolated bridge/extension; inspect private setup logs.")
+
+
+def source_revision(path: Path) -> dict:
+    result = subprocess.run(["git", "-C", str(path), "rev-parse", "HEAD"],
+                            capture_output=True, text=True, timeout=10)
+    dirty = subprocess.run(["git", "-C", str(path), "status", "--porcelain"],
+                           capture_output=True, text=True, timeout=10)
+    return {"revision": result.stdout.strip() if result.returncode == 0 else None,
+            "dirty": bool(dirty.stdout) if dirty.returncode == 0 else None}
+
+
+def experiment() -> dict:
+    spec = json.loads((ROOT / "configs/experiments/smoke.json").read_text())
+    if spec["codex_version"] != PINNED_CODEX_VERSION or spec["reasoning_effort"] != "medium":
+        raise ValueError("Smoke configuration differs from adapter pins.")
+    return spec
+
+
+def run_pair(*, execute: bool = False, kitsune_project: str | None = None,
+             executable: str = "codex", timeout: int | None = None,
+             experiment_spec: dict | None = None, artifact_scope: str = "smoke",
+             task_for_target: Callable[[str], Task] | None = None,
+             evaluate: Callable[[str, dict], dict] | None = None,
+             enabled_tools: dict[str, tuple[str, ...]] | None = None) -> dict:
+    spec = experiment() if experiment_spec is None else experiment_spec
+    if spec["codex_version"] != PINNED_CODEX_VERSION or spec["reasoning_effort"] != "medium":
+        raise ValueError("Experiment differs from adapter pins.")
+    if not execute:
+        return {"mode": "smoke_plan_only", "model_invoked": False, "experiment": spec,
+                "next": "Install pinned tools/private Firefox, then use smoke --execute."
+                " Execution consumes subscription quota."}
+    if os.name != "posix":
+        raise ValueError("Smoke process isolation requires POSIX.")
+    timeout = spec["timeout_sec"] if timeout is None else positive_int(timeout, "timeout")
+    path = resolve(executable)
+    env = codex_environment(path)
+    preflight(path, env)
+    project = Path(kitsune_project).expanduser().resolve() if kitsune_project else ROOT.parent / "kitsune"
+    if not (project / "extension/manifest.json").is_file():
+        raise ValueError("Kitsune source/extension not found; set --kitsune-project.")
+    web_ext = ROOT / "node_modules/.bin/web-ext"
+    playwright_cli = ROOT / "node_modules/@playwright/mcp/cli.js"
+    if not web_ext.exists() or not playwright_cli.exists():
+        raise ValueError("Install pinned tools with npm ci --ignore-scripts first.")
+    cache = ROOT / "artifacts/browsers"
+    env["PLAYWRIGHT_BROWSERS_PATH"] = str(cache)
+    env["PLAYWRIGHT_SKIP_BROWSER_GC"] = "1"
+    get_binary = subprocess.run(["node", "-e", "console.log(require('playwright').firefox.executablePath())"],
+                                cwd=ROOT, env=env, capture_output=True, text=True, timeout=10, check=True)
+    firefox = Path(get_binary.stdout.strip())
+    if not firefox.is_file():
+        raise ValueError("Private Firefox missing; install with PLAYWRIGHT_BROWSERS_PATH and GC disabled.")
+    parent = ROOT / "artifacts" / identifier(artifact_scope)
+    parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    pair_dir = parent / (datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ-") + uuid.uuid4().hex[:10])
+    pair_dir.mkdir(mode=0o700)
+    http_port, ws_port = private_ports()
+    patch_info = copy_extension(project / "extension", pair_dir / "extension", ws_port)
+    env.update({
+        "KITSUNE_HOME": str(pair_dir / "bridge-home"),
+        "KITSUNE_HTTP_PORT": str(http_port), "KITSUNE_WS_PORT": str(ws_port),
+        "KITSUNE_TOKEN": secrets.token_urlsafe(32),
+    })
+    specs = {
+        "playwright": Server("playwright", "node", (
+            str(playwright_cli), "--browser", "firefox", "--isolated", "--headless",
+            "--viewport-size", "1280x720"),
+            ("PLAYWRIGHT_BROWSERS_PATH", "PLAYWRIGHT_SKIP_BROWSER_GC", "PWTEST_SOCKETS_DIR"), 60, 45),
+        "kitsune": Server("kitsune", "uv", ("run", "--locked", "--project", str(project), "kitsune"),
+            ("KITSUNE_HOME", "KITSUNE_HTTP_PORT", "KITSUNE_WS_PORT", "KITSUNE_TOKEN"), 60, 45),
+    }
+    if enabled_tools is not None:
+        specs = {target: replace(server, enabled_tools=enabled_tools[target]) for target, server in specs.items()}
+    manifest = {
+        "experiment": spec, "enabled_tools": enabled_tools, "browser_binary": str(firefox), "headless": True,
+        "kitsune_source": source_revision(project), "extension_patch": patch_info,
+        "http_port": http_port, "ws_port": ws_port,
+        "limitations": ["One fixed-order smoke pair, not benchmark evidence.",
+                        "Viewport equivalence not asserted for web-ext Firefox.",
+                        "External success evaluation not implemented." if evaluate is None
+                        else "External per-target evaluator attached; inspect its track/integrity limits."],
+    }
+    write_json(pair_dir / "pair-manifest.json", manifest)
+    default_task = load_task(ROOT / spec["task"]) if task_for_target is None else None
+    results = {}
+    with ExitStack() as stack:
+        resources = stack.enter_context(ResourceCollector(pair_dir))
+        resources.set_phase("setup")
+        # macOS Unix-domain socket paths are short; the repository artifact
+        # path plus Playwright worker suffix exceeds that limit.
+        env["PWTEST_SOCKETS_DIR"] = stack.enter_context(
+            tempfile.TemporaryDirectory(prefix="bmb-", dir="/tmp"))
+        def spawn(argv: list[str], filename: str, component: str) -> subprocess.Popen:
+            log = stack.enter_context((pair_dir / filename).open("xb"))
+            os.chmod(log.name, 0o600)
+            process = subprocess.Popen(argv, env=env, cwd=pair_dir, stdin=subprocess.DEVNULL,
+                                       stdout=log, stderr=log, start_new_session=True)
+            resources.register(ResourceRoot(process.pid, component, "kitsune"))
+            def cleanup() -> None:
+                resources.set_phase("cleanup")
+                terminate_group(process)
+            stack.callback(cleanup)
+            return process
+        bridge = spawn(["uv", "run", "--locked", "--project", str(project),
+                        "python", "-m", "kitsune.bridge"], "bridge.log", "bridge")
+        await_bridge(http_port, env["KITSUNE_TOKEN"], bridge)
+        browser = spawn([str(web_ext), "run", "--no-config-discovery", "--no-input",
+            "--source-dir", str(pair_dir / "extension"), "--artifacts-dir", str(pair_dir / "web-ext"),
+            "--firefox", str(firefox), "--no-reload", "--start-url", "about:blank",
+            "--args=-headless", "--args=--width=1280", "--args=--height=720"], "firefox.log", "browser_launcher")
+        await_bridge(http_port, env["KITSUNE_TOKEN"], browser, extension=True)
+        resources.set_phase("ready")
+        time.sleep(1)
+        # Scope these values to this Python process and its children only.
+        # adapter.run itself still applies the restricted environment policy.
+        previous = {key: os.environ.get(key) for key in env}
+        try:
+            os.environ.update(env)
+            for target, server in specs.items():
+                task = task_for_target(target) if task_for_target else default_task
+                assert task is not None
+                resources.set_phase("task_" + target)
+                external = (ResourceRoot(bridge.pid, "bridge", "kitsune", True),
+                            ResourceRoot(browser.pid, "browser_launcher", "kitsune", True)) if target == "kitsune" else ()
+                result = run(server, task, spec["model"], executable=path, timeout=timeout,
+                             output_root=str(pair_dir / "runs"), confirm_isolated_browser=True,
+                             resource_roots=external, resource_observer=resources)
+                if evaluate is not None:
+                    evaluation = evaluate(target, result)
+                    write_json(Path(result["run_dir"]) / "evaluation.json", evaluation)
+                    result["benchmark_evaluation"] = evaluation
+                results[target] = result
+                write_json(pair_dir / (target + "-summary.json"), result)
+                if result["execution_status"] != "completed_unscored":
+                    # Do not silently substitute another model/harness or keep
+                    # spending quota after the first integration failure.
+                    break
+        finally:
+            resources.set_phase("cleanup")
+            for key, value in previous.items():
+                if value is None:
+                    os.environ.pop(key, None)
+                else:
+                    os.environ[key] = value
+    summary = {"pair_dir": str(pair_dir), "model": spec["model"], "results": results,
+               "task_success": None,
+               "evaluation": "per_target_external_evaluator" if evaluate else "not_implemented",
+               "resource_summary_path": str(pair_dir / "resource-summary.json")}
+    write_json(pair_dir / "pair-summary.json", summary)
+    return summary

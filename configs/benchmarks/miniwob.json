@@ -1,0 +1,14 @@
+{
+  "id": "miniwob-mcp-ui-pilot",
+  "model": "gpt-6.1-sol",
+  "reasoning_effort": "medium",
+  "codex_version": "0.163.0",
+  "timeout_sec": 180,
+  "source_repository": "https://github.com/Farama-Foundation/miniwob-plusplus.git",
+  "source_revision": "33c3b4ddef8c6eb67c57a29663d844b1eda7e614",
+  "source_directory": "artifacts/vendor/miniwob",
+  "task_id": "click-test-2",
+  "seed": 42,
+  "episode_timeout_ms": 120000,
+  "purpose": "Original MiniWoB++ task/reward in a Firefox MCP UI-only integration track; not a standard Gym leaderboard score"
+}

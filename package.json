@@ -1,0 +1,13 @@
+{
+  "name": "browser-mcp-bench-tools",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Pinned local tools for isolated Firefox smoke runs",
+  "scripts": {
+    "setup:firefox": "node scripts/install-firefox.mjs"
+  },
+  "dependencies": {
+    "@playwright/mcp": "0.0.83",
+    "web-ext": "10.8.0"
+  }
+}

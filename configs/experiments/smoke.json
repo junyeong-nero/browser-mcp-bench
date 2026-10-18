@@ -1,0 +1,9 @@
+{
+  "id": "gpt-6.1-sol-firefox-smoke",
+  "model": "gpt-6.1-sol",
+  "reasoning_effort": "medium",
+  "codex_version": "0.163.0",
+  "task": "tasks/smoke/example-domain.json",
+  "timeout_sec": 180,
+  "purpose": "Single paired smoke run; not a benchmark score"
+}
