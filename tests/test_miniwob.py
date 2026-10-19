@@ -89,7 +89,7 @@ class MiniwobTests(unittest.TestCase):
         with patch("subprocess.Popen", side_effect=AssertionError("no processes in plan")):
             result = run_benchmark()
         self.assertFalse(result["model_invoked"])
-        self.assertEqual(result["config"]["model"], "gpt-6.1-sol")
+        self.assertEqual(result["config"]["model"], "gpt-6-luna")
         with patch("subprocess.Popen", side_effect=AssertionError("no model")), redirect_stdout(io.StringIO()):
             self.assertEqual(main(["benchmark"]), 0)
 

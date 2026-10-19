@@ -1,5 +1,13 @@
 # MiniWoB++ external-task pilot
 
+[Documentation index](README.md) · [Running guide](running.md) ·
+[Historical MiniWoB result](results/2026-10-18-miniwob.md)
+
+**Scope:** only `click-test-2`, seed 42, is wired into this adapter. This is not
+a runner for the entire MiniWoB++ suite. For the current product-oriented work
+on existing tabs, sessions and safe drafts, use the separate
+[personal browsing track](personal-browsing.md).
+
 ## Why this environment first
 
 WebArena-Verified requires a substantial self-hosted Docker environment. This
@@ -23,7 +31,10 @@ Configuration: `configs/benchmarks/miniwob.json`.
 - Episode budget:120000ms; upstream HTML defaults to10000ms. This explicit
   difference prevents treating the measurements as standard default-budget scores.
 - Agent wall-clock limit:180 seconds per target.
-- Model: `gpt-6.1-sol`, reasoning `medium`, Codex CLI0.163.0.
+- Configured model: `gpt-6-luna`, reasoning `medium`, Codex CLI0.163.0.
+  Historical pilot results used `gpt-6.1-sol`; see the
+  [dated result report](results/2026-10-18-miniwob.md). The current model setting
+  has not been re-evaluated on this MiniWoB task.
 - First pilot: one task/seed, one attempt per target, Playwright first.
 
 The vendor checkout lives under gitignored `artifacts/vendor/miniwob`. Its HEAD

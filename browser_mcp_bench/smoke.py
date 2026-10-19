@@ -103,7 +103,8 @@ def run_pair(*, execute: bool = False, kitsune_project: str | None = None,
              experiment_spec: dict | None = None, artifact_scope: str = "smoke",
              task_for_target: Callable[[str], Task] | None = None,
              evaluate: Callable[[str, dict], dict] | None = None,
-             enabled_tools: dict[str, tuple[str, ...]] | None = None) -> dict:
+             enabled_tools: dict[str, tuple[str, ...]] | None = None,
+             prepare_server: Callable[[str, Server, Task, Path], Server] | None = None) -> dict:
     spec = experiment() if experiment_spec is None else experiment_spec
     if spec["codex_version"] != PINNED_CODEX_VERSION or spec["reasoning_effort"] != "medium":
         raise ValueError("Experiment differs from adapter pins.")
@@ -201,6 +202,8 @@ def run_pair(*, execute: bool = False, kitsune_project: str | None = None,
             for target, server in specs.items():
                 task = task_for_target(target) if task_for_target else default_task
                 assert task is not None
+                if prepare_server is not None:
+                    server = prepare_server(target, server, task, pair_dir)
                 resources.set_phase("task_" + target)
                 external = (ResourceRoot(bridge.pid, "bridge", "kitsune", True),
                             ResourceRoot(browser.pid, "browser_launcher", "kitsune", True)) if target == "kitsune" else ()
@@ -213,7 +216,8 @@ def run_pair(*, execute: bool = False, kitsune_project: str | None = None,
                     result["benchmark_evaluation"] = evaluation
                 results[target] = result
                 write_json(pair_dir / (target + "-summary.json"), result)
-                if result["execution_status"] != "completed_unscored":
+                if (result["execution_status"] != "completed_unscored"
+                        or (evaluate is not None and not result["benchmark_evaluation"].get("scorable"))):
                     # Do not silently substitute another model/harness or keep
                     # spending quota after the first integration failure.
                     break

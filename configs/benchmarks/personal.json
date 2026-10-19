@@ -1,0 +1,11 @@
+{
+  "id": "personal-browsing-local-v1",
+  "model": "gpt-6-luna",
+  "reasoning_effort": "medium",
+  "codex_version": "0.163.0",
+  "timeout_sec": 180,
+  "catalog": "tasks/personal/catalog.json",
+  "pilot_tasks": ["pb-current-01", "pb-tabs-01", "pb-research-01", "pb-account-01", "pb-handoff-01", "pb-safe-01"],
+  "default_variant": 0,
+  "purpose": "Synthetic personal-session MCP comparison; not an upstream benchmark score or a live-account evaluation"
+}

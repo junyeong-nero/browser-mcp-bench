@@ -13,7 +13,7 @@ from browser_mcp_bench.smoke import WS_SETTING, copy_extension, experiment, priv
 class SmokeTests(unittest.TestCase):
     def test_exact_requested_model_and_reasoning_pin(self):
         spec = experiment()
-        self.assertEqual(spec["model"], "gpt-6.1-sol")
+        self.assertEqual(spec["model"], "gpt-6-luna")
         self.assertEqual(spec["reasoning_effort"], "medium")
 
     def test_default_plan_has_no_process_or_browser_side_effects(self):

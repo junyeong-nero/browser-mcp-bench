@@ -1,6 +1,11 @@
 # Local process resource collection
 
-`run` and `smoke --execute` now sample local resources with pinned psutil 7.2.2.
+[Documentation index](README.md) · [Running guide](running.md) · [Results](results/README.md)
+
+`run` and paired `smoke`, `benchmark`, and `personal` executions sample local
+resources with pinned psutil 7.2.2. This document covers process CPU/RAM, not
+model tokens or subscription billing; see the
+[usage inspection guide](running.md#inspect-outcomes-and-usage) for those fields.
 Use `uv sync --locked` / `uv run --locked ...`; the Python runtime is no longer
 standard-library-only. No model API SDK has been added.
 
@@ -26,7 +31,7 @@ The pair-level collector measures their full lifecycle and checks final cleanup.
 
 ## Files and metrics
 
-Each run and each smoke-pair directory contains:
+Each run and each paired-track directory contains:
 
 - `resources.jsonl`: timestamps, phase, PID/creation-time/parent/name/state,
   role/owner, RSS bytes, CPU user/system counters and deltas, one-core CPU
@@ -69,12 +74,17 @@ may exceed 100% for multithreaded work.
   the relevant leak check for the private Kitsune browser/bridge.
 - Pair-level `all` includes idle Kitsune resources while Playwright executes.
   For target comparisons use each **per-run** summary or filter by owner.
-- Timing/startup asymmetry and fixed order from the smoke experiment remain;
-  resource collection does not turn that experiment into a fair leaderboard.
+- Timing/startup asymmetry and fixed order remain across the current tracks;
+  resource collection does not turn a single pair into a fair leaderboard.
+- Personal-track process scope includes its stdio relay and native browser
+  setup/readiness/inventory work. This is instrumented session-task execution,
+  not directly comparable to older smoke/MiniWoB resource windows without that
+  relay. Hidden work is counted separately in the personal evaluation but is
+  still included in raw elapsed time and sampled process resources.
 
-## First real validation
+## Observed validation
 
-Actual paired GPT-6.1-Sol smoke with collection:
+First historical paired `gpt-6.1-sol` smoke with collection:
 
 `artifacts/smoke/20261018T080844Z-2d61acf8c1/`
 
@@ -82,7 +92,13 @@ Both runs completed unscored. The pair captured 64 boundary/periodic samples,
 reported zero sampling errors, and no unexpected live processes at final stop.
 All expected component groups were present, including the separately started
 Kitsune bridge/browser/launcher. These numbers are setup validation, not a
-resource efficiency ranking.
+resource efficiency ranking. See the [historical smoke report](results/2026-10-18-smoke.md).
+
+The [2026-10-19 personal report](results/2026-10-19-personal-current-page.md)
+contains a later `gpt-6-luna` one-task pair with per-run task-phase resources,
+53 pair-lifecycle samples, zero sampling errors and no unexpected survivors.
+Its relay setup/inventory overhead is explicitly separate from agent calls;
+this does not remove startup/order/sampling confounders.
 
 ## Tests
 

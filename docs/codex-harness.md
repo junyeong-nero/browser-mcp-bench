@@ -1,11 +1,18 @@
 # Codex harness integration
 
+[Documentation index](README.md) · [Running guide](running.md) · [Results](results/README.md)
+
+This document describes execution/authentication boundaries. Track-specific
+reset and grading contracts live in the [personal](personal-browsing.md) and
+[MiniWoB](miniwob.md) guides; observed measurements live in dated reports.
+
 ## Fixed configuration and boundaries
 
-- Codex CLI `0.163.0`, model `gpt-6.1-sol`, reasoning effort `medium`.
+- Codex CLI `0.163.0`, model `gpt-6-luna`, reasoning effort `medium`.
 - Supported ChatGPT subscription login; no custom model API client, API-key
   fallback, credential extraction/copying, or automatic model substitution.
-- Model calls consume subscription quota. Cached tokens are not API charges.
+- Model calls consume subscription quota. Reported usage is not a billing API;
+  cached-input fields do not establish subscription charges or remaining quota.
 - Both MCPs use one server name, `browser`, and their native tool schemas/results.
 - Python runtime uses pinned psutil for collection. Install with `uv sync --locked`.
 
@@ -18,10 +25,13 @@ Commands:
 | `run` | Execute one operator-provisioned task/browser configuration |
 | `smoke` | Plan; `--execute` runs an isolated read-only pair |
 | `benchmark` | Plan; `--fetch` downloads pinned source; `--execute` runs the external pilot |
+| `personal` | Plan; `--execute` runs selected local personal-session task pairs (six runnable of 24 specs) |
 
-No generalized multi-task scheduler, randomized/repeated statistics, WebArena
-reset/deployment, token-budget termination, or complete tool/prompt attestation
-is implemented. See [MiniWoB](miniwob.md) for the first limited external task.
+The personal track has a bounded sequential multi-task runner. No generalized
+randomized/repeated scheduler/statistics, WebArena reset/deployment, token-budget
+termination, or complete tool/prompt attestation is implemented. See
+[MiniWoB](miniwob.md) and [personal browsing](personal-browsing.md) for separate
+tracks, external state evaluation, and their limits.
 
 ## Local checks and real validation
 
@@ -32,10 +42,19 @@ Its help supports `--ignore-user-config`, `--ignore-rules`, `--ephemeral`,
 checked against the pinned official schema and metadata commands. Features
 showed shell/apps/built-in browser/hooks/plugins/subagents/memory disabled.
 
-Both targets have now completed real isolated smoke and MiniWoB pilot runs.
-See [smoke report](results/2026-10-18-smoke.md) and
-[external pilot report](results/2026-10-18-miniwob.md). Observed JSONL had no
-forbidden tools in the final runs; this is not full tool-inventory attestation.
+Both targets completed isolated smoke and MiniWoB pilot runs with the historical
+`gpt-6.1-sol` model on 2026-10-18. See the [smoke report](results/2026-10-18-smoke.md)
+and [MiniWoB report](results/2026-10-18-miniwob.md). On 2026-10-19 one personal
+`pb-current-01` / variant 0 pair completed on both targets with the configured
+`gpt-6-luna` model and passed external grading; see the
+[personal report](results/2026-10-19-personal-current-page.md). These final JSONL
+traces had no observed forbidden tools; this is not full tool-inventory attestation.
+A later [six-task variant-0 personal pilot](results/2026-10-19-personal-six-task.md)
+recorded 12 scorable agent runs with the same model and policy. Not all tasks
+passed: see its format/preservation caveats. Private native RPC timing/size and
+catalog logs were added before that run; [offline analysis](optimization-findings.md)
+distinguishes hidden setup, agent RPC and residual elapsed without provider-level
+per-request usage. This addition does not make tool/prompt attestation complete.
 
 Executable discovery prefers PATH, then common locations/unambiguous nvm
 installations. Ambiguous candidates require `--codex`; shell startup scripts
@@ -93,14 +112,15 @@ Codex config overrides are unsupported. Local project arguments should be
 absolute because cwd is temporary.
 
 `enabled_tools` filters native tools without translating their schemas. It is
-omitted for the full native smoke and specified for the MiniWoB UI-only pilot.
+omitted for the full native smoke and specified for the MiniWoB and personal
+UI-only tracks.
 The audit checks that observed tool names match the supplied allowlist and
 rejects JavaScript/data/file navigation URLs in that restricted track.
 
 ```sh
 uv run --locked python -m browser_mcp_bench plan \
   --server configs/servers/playwright.json \
-  --task tasks/smoke/example-domain.json --model gpt-6.1-sol
+  --task tasks/smoke/example-domain.json --model gpt-6-luna
 ```
 
 Generic `run` additionally requires `--confirm-isolated-browser`. That flag is an
@@ -133,17 +153,22 @@ the same Firefox executable. A short private `/tmp/bmb-*` socket directory avoid
 the macOS Unix-domain path limit. Existing Zen profiles are never attached.
 
 The pair is fixed order, Playwright first. It stops after an execution integration
-failure rather than silently changing models or continuing to spend quota.
-Task success/failure from the external evaluator is separate from execution
-status; an evaluated task failure can still be a valid measurement.
+failure or unscorable external evaluation rather than silently changing models
+or continuing to spend quota. Task success/failure from the external evaluator
+is separate from execution status; a scorable task failure can still be a valid
+measurement. The personal track adds a native stdio relay for preloaded tabs,
+test-session setup and post-call inventory evidence; its hidden work and timing
+limits are described in the [personal protocol](personal-browsing.md#artifacts-and-metrics).
 
 ## Artifacts and resource collection
 
 Each agent directory contains `manifest.json`, `events.jsonl`, `stderr.log`,
 `final.txt` when emitted, `summary.json`, `resources.jsonl`, and
 `resource-summary.json`. External trials also have `evaluation.json`.
-Pair directories have their own lifecycle resource trace and target summaries;
-external pairs additionally save `benchmark-summary.json`.
+Pair directories have their own lifecycle resource trace and target summaries.
+MiniWoB pairs additionally save `benchmark-summary.json`; personal pairs save
+`personal-summary.json`, session evidence, and a `suite-summary.json` in the
+first attempted pair directory. See the [artifact map](running.md#inspect-outcomes-and-usage).
 
 Directories are private0700 and run artifact files0600. Raw logs may contain
 page data/images/reasoning; artifacts are gitignored, not automatically redacted.
@@ -177,7 +202,8 @@ object, not a replacement for execution evidence. Quota/auth failures are not
 converted into externally graded task failures.
 
 CLI exit0: successful plan/check, completed unscored run/pair, or a scorable
-external pair (including valid task failures). Exit2: prerequisite/input error.
+external selection whose requested pairs are all scorable (including valid task
+failures). Exit2: prerequisite/input error.
 Exit3: other execution/unscorable outcomes.
 
 ## Setup side effect and tests

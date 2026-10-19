@@ -1,6 +1,6 @@
 {
   "id": "miniwob-mcp-ui-pilot",
-  "model": "gpt-6.1-sol",
+  "model": "gpt-6-luna",
   "reasoning_effort": "medium",
   "codex_version": "0.163.0",
   "timeout_sec": 180,

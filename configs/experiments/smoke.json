@@ -1,6 +1,6 @@
 {
-  "id": "gpt-6.1-sol-firefox-smoke",
-  "model": "gpt-6.1-sol",
+  "id": "gpt-6-luna-firefox-smoke",
+  "model": "gpt-6-luna",
   "reasoning_effort": "medium",
   "codex_version": "0.163.0",
   "task": "tasks/smoke/example-domain.json",

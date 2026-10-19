@@ -1,5 +1,12 @@
 # Browser MCP comparison candidates
 
+[Documentation index](README.md) · [Current results](results/README.md)
+
+This is a survey of **MCP servers/browser architectures**, not a catalog of
+benchmark tasks. See [personal browsing](personal-browsing.md) for task design
+and implementation status. Adding a surveyed server requires a separate adapter
+and validation; none of the rows below is implicitly supported by the task runner.
+
 Surveyed 2026-10-18 against upstream repositories/documentation. These are
 **candidates, not implemented adapters or measured results**. Pin an exact release
 or commit and re-check its current tool surface before adding any candidate.
@@ -54,7 +61,7 @@ exact pinned mode before execution. No candidate was installed during this surve
 - Native schemas, one exposed MCP server name, fixed Codex/model/effort/prompt.
 - Fresh profile, deterministic task/seed/reset, same effective viewport and budget.
 - No personal sessions, default bridge conflicts, login imports or user-config edits.
-- For the MiniWoB UI-only track, audit script/evaluate/workflow/batch/code surfaces
+- For the MiniWoB and personal UI-only tracks, audit script/evaluate/workflow/batch/code surfaces
   and unsafe navigation for every new server; different tool names need a fresh
   allowlist. Do not normalize all interfaces into one artificial tool schema.
 - Identify whether any tool internally calls another LLM or an embedding API.
@@ -64,7 +71,7 @@ exact pinned mode before execution. No candidate was installed during this surve
   sidecar services, launcher and model/embedding helpers if any.
 - Keep cold-start and warm-ready timing separate, counterbalance order, repeat
   task/seed pairs, and report execution errors apart from task failures.
-- A remote browser cannot reach this harness's `127.0.0.1` MiniWoB server without
+- A remote browser cannot reach this harness's `127.0.0.1` MiniWoB/personal server without
   additional networking. Do not expose the token-bearing evaluator publicly just
   to make a cloud contender work. Remote resources are not local RSS measurements.
 

@@ -1,0 +1,202 @@
+# Running benchmarks safely
+
+[Documentation index](README.md) · [Personal task protocol](personal-browsing.md) ·
+[Results](results/README.md)
+
+## Setup
+
+Prerequisites: Python 3.11+, uv, Node/npm, a supported Codex ChatGPT subscription
+login and the Kitsune source checkout (normally sibling `../kitsune`). The
+current harness pins Codex CLI `0.163.0`; execution configs request
+`gpt-6-luna` with reasoning `medium`.
+
+```sh
+uv sync --locked
+npm ci --ignore-scripts --no-audit --no-fund
+npm run setup:firefox
+```
+
+The browser helper installs to the private `artifacts/browsers` cache with
+shared-cache garbage collection disabled. Automated pair commands use isolated
+headless profiles and private bridge ports, not an everyday Firefox/Zen session.
+Use `--kitsune-project /absolute/path/to/kitsune` if the checkout is not the
+sibling directory; `--codex /path/to/codex` disambiguates CLI discovery.
+
+Do not import real account credentials or attach a normal browser profile.
+Personal tasks use synthetic local app state and test cookies. See
+[authentication and isolation](codex-harness.md#authentication-and-isolation).
+
+## Check without inference
+
+```sh
+# Version/help/login checks only, not a model-availability or quota test.
+uv run --locked python -m browser_mcp_bench doctor --json
+
+# Exact one-pair plan: no browser, model, login check or fixture server.
+uv run --locked python -m browser_mcp_bench personal \
+  --task pb-current-01 --variant 0
+```
+
+`doctor` flags inherited model API credentials. Actual execution uses a restricted
+child environment that strips them. To run a standalone subscription-only doctor
+check when the shell has such variables, omit them only for that child command:
+
+```sh
+env -u OPENAI_API_KEY -u CODEX_API_KEY -u OPENAI_AUTH_TOKEN -u AZURE_OPENAI_API_KEY \
+  uv run --locked python -m browser_mcp_bench doctor --json
+```
+
+No command edits the user's Codex authentication/configuration. The CLI alone
+reads its existing login; there is no API-key or alternate-model fallback.
+
+## Choose the smallest relevant run
+
+| Command | What is selected | Maximum requested agent runs |
+| --- | --- | ---: |
+| `personal --task pb-current-01 --execute` | One current-page task pair, variant 0 | 2 |
+| `personal --execute` | Six implemented personal tasks, one variant | 12 |
+| Three separate `personal --variant N --execute` commands for N=0,1,2 | Six tasks across three data variants | 36 total |
+| `benchmark --execute` | One MiniWoB++ `click-test-2` pair, seed 42 | 2 |
+| `smoke --execute` | One read-only Example Domain pair | 2 |
+
+These are **agent run counts**, not LLM turn counts, token caps or prices. One
+agent run can contain many model/tool interactions. There is no `full-test`
+command that automatically executes every upstream benchmark.
+
+### Personal browsing: recommended starting point
+
+```sh
+# One explicit quota-consuming pair.
+uv run --locked python -m browser_mcp_bench personal \
+  --task pb-current-01 --variant 0 --execute
+
+# Larger pilot: only run after inspecting a small pair and agreeing the quota budget.
+uv run --locked python -m browser_mcp_bench personal --execute
+
+# Select tasks explicitly; repeat --task for each selection.
+uv run --locked python -m browser_mcp_bench personal \
+  --task pb-tabs-01 --task pb-safe-01 --variant 1 --execute
+```
+
+There are **24 specifications but only six runnable tasks**. Unknown,
+duplicate and specification-only IDs fail validation before inference. The
+first real one-pair result is documented
+[here](results/2026-10-19-personal-current-page.md); do not count it as a full
+six-task pilot. A separate [six-task variant-0 pilot](results/2026-10-19-personal-six-task.md)
+is now recorded, including unsuccessful tasks and diagnostic breakdowns.
+See the [catalog and protocol](personal-browsing.md#catalog) for eligible tasks and scope.
+
+### Other tracks
+
+```sh
+# Read-only connectivity/tool smoke; no external success grader.
+uv run --locked python -m browser_mcp_bench smoke
+uv run --locked python -m browser_mcp_bench smoke --execute
+
+# MiniWoB source fetch only: network/download, but no model inference.
+uv run --locked python -m browser_mcp_bench benchmark --fetch
+uv run --locked python -m browser_mcp_bench benchmark
+uv run --locked python -m browser_mcp_bench benchmark --execute
+```
+
+MiniWoB is the small [upstream task/reward integration](miniwob.md), not the
+personal-session evaluation and not the complete MiniWoB++ suite. Generic
+`plan`/`run` are advanced operator-provisioned commands; `run` requires
+`--confirm-isolated-browser` and **does not provision an isolated browser**.
+Read [individual-run inputs](codex-harness.md#individual-run-inputs) first.
+
+## Quota and stopping
+
+- Without `--execute`, paired track commands plan only. The separate generic
+  `run` command executes by definition.
+- Execution consumes **ChatGPT subscription usage**. The project has no direct
+  model API integration, remaining-quota monitor or dollar-cost estimator.
+- Current per-agent wall-clock limit is **180 seconds** in the paired configs.
+  **There is no token-budget stop.** A timeout is not a fixed token allowance.
+- Setup/execution/unscorable failures stop further targets/tasks. Ordinary
+  scorable task failures do not. No automatic retry or model substitution occurs.
+- Fixed order is Playwright then Kitsune. Data variants are not repeated
+  identical trials or order counterbalancing.
+
+## Inspect outcomes and usage
+
+The CLI prints the summary. Raw evidence is private and gitignored:
+
+| Track | Artifact root | Main summaries |
+| --- | --- | --- |
+| Personal | `artifacts/personal/<pair-id>/` | `personal-summary.json`; `suite-summary.json` in the first attempted pair |
+| MiniWoB | `artifacts/miniwob/<pair-id>/` | `benchmark-summary.json` |
+| Smoke | `artifacts/smoke/<pair-id>/` | `pair-summary.json` |
+
+Per-run `summary.json` retains execution audit and `usage`; external tracks add
+`evaluation.json` and `benchmark_evaluation` in the target result.
+
+Read in this order:
+
+1. **Coverage:** requested/attempted/completed pairs; which targets actually ran.
+2. **Validity:** `execution_status` and external `scorable`. Missing setup
+   evidence or model/transport errors are not ordinary task failures.
+3. **Outcome:** external `task_success`, `functional_success` and `safety_pass`
+   where available. Final chat claims do not establish success.
+4. **Usage:** `input_tokens`, `cached_input_tokens`, `output_tokens` and optional
+   `reasoning_output_tokens`. Cached input is a **subset of input**, not an extra
+   total. Missing usage is not zero consumption. Subscription-limit accounting
+   cannot be reconstructed from these fields.
+5. **Efficiency:** compare successful-run usage/calls with coverage visible;
+   failed early runs are not efficiency wins. Personal `by_target` aggregates
+   all-run and successful-run costs separately and records usage coverage.
+6. **Instrumentation:** personal `harness_mcp_calls`/`harness_seconds` are hidden
+   setup/readiness/inventory work, separate from agent calls. Raw elapsed time
+   includes that work and cleanup, and is not clean MCP latency.
+
+CPU/RAM are local process observations, not remote inference or API charges.
+Summed RSS can double-count shared memory; see [resource methodology](resources.md).
+Review/redact raw artifacts before sharing them; do not publish profiles or tokens.
+
+### Exit status is not the task grade
+
+| Exit | Meaning |
+| --- | --- |
+| `0` | Successful plan/check; completed generic/smoke execution; or all selected external pairs scorable, even if a task failed |
+| `2` | Input/prerequisite error |
+| `3` | Execution incomplete, failed or externally unscorable |
+
+`completed_unscored` is the generic adapter's completion label. A successful
+external task can retain it alongside `benchmark_evaluation.task_success: true`.
+
+## Tests without model usage
+
+```sh
+# Default tests: no real LLM calls; native browser integration tests skipped.
+uv run --locked python -m unittest discover -s tests -v
+
+# Real isolated Firefox UI fixture tests for both native MCPs, still no inference.
+PERSONAL_BROWSER_TEST=1 PERSONAL_KITSUNE_TEST=1 \
+  uv run --locked python -m unittest discover -s tests -p 'test_personal.py' -v
+```
+
+The opt-in tests require installed private browser/npm tools and the sibling
+Kitsune checkout. They use deterministic drivers, not Codex agent execution;
+passing them is not a model benchmark score. The full suite including both
+native-browser tests passed 65 tests when the personal track was introduced.
+After adding offline diagnostic-analysis tests, default discovery runs 69 tests
+(67 pass, two opt-in native-browser tests skipped).
+
+## Analyze existing logs without inference
+
+New personal runs also record private `{target}-native-rpc.jsonl` (RPC start/end,
+agent vs harness role, sizes, cache/setup/wait markers) and
+`{target}-native-metadata.json` (initialize/catalog/configured allowlist).
+Codex raw payloads and final usage remain in `runs/<id>/events.jsonl`.
+
+```sh
+# Reads already recorded evidence. No model, browser or network request.
+uv run --locked python -m browser_mcp_bench.personal_analysis \
+  artifacts/personal/20261019T104926Z-ef986c9a42/suite-summary.json \
+  --output artifacts/personal/20261019T104926Z-ef986c9a42/analysis-review.json
+```
+
+Use a new output filename; overwrite is refused. Old runs without native logs
+have missing/null diagnostics, not measured zero timings. See
+[optimization findings](optimization-findings.md) for log coverage, confirmed
+cache behavior, the no-model browser probe and remaining per-request usage gaps.

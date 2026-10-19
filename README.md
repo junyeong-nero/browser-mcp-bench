@@ -1,29 +1,41 @@
 # Browser MCP Bench
 
-Compare **Playwright MCP vs Kitsune MCP** with a fixed Codex/model configuration,
-external task evidence, and local process resource measurements.
+Compare **Playwright MCP vs Kitsune MCP** on everyday browser tasks, using a
+fixed Codex/model configuration, external task evidence, token usage and local
+CPU/RAM measurements.
 
-## Current state
+**Start here:** [Documentation](docs/README.md) · [Running guide](docs/running.md) ·
+[Personal browsing taskset](docs/personal-browsing.md) · [Results](docs/results/README.md)
 
-- **Harness:** Codex CLI `0.163.0`, existing ChatGPT subscription login.
-- **Model:** `gpt-6.1-sol`, reasoning `medium`; no direct model API integration or
-  API-key fallback. Execution consumes subscription quota.
-- **Browser:** isolated Firefox 156 profiles using the same private-cache binary.
-- **Resources:** one-second process sampling, including separately started
-  Kitsune bridge/browser roots; setup/task/cleanup phases and private artifacts.
-- **External pilot:** pinned MiniWoB++ `click-test-2`, seed 42, original reward
-  evaluation. Both MCPs have completed one actual pilot episode successfully.
-- **Not yet a benchmark suite:** no multi-task/repeated randomized experiments,
-  WebArena deployment, full prompt/catalog attestation, or token-budget stopping.
+## Current focus and status
 
-MiniWoB results are a **Firefox MCP UI-only pilot**, not the standard Chrome/Gym
-leaderboard. The configured episode budget is 120 seconds instead of upstream's
-10-second HTML default. Do not generalize one episode into a success-rate ranking.
+The primary track evaluates **personal browsing**: continuing work in existing
+tabs and a pre-established test session, gathering information, transferring it
+to drafts, and respecting do-not-submit/preserve-context boundaries.
+
+| Track | Implemented scope | Actual model evidence |
+| --- | --- | --- |
+| **Personal browsing** | 24 original specifications; **six runnable local tasks**, 18 spec-only; three data variants per implemented task | Six variant-0 pairs on `gpt-6-luna`, all scorable; current grader scores 3/6 Playwright, 4/6 Kitsune, with documented grading/protocol caveats |
+| MiniWoB++ UI pilot | Only upstream `click-test-2`, seed 42 | One pair passed with historical `gpt-6.1-sol` on 2026-10-18 |
+| Read-only smoke | Example Domain, no external task-success grader | One completed historical `gpt-6.1-sol` pair on 2026-10-18 |
+
+Current configs request **`gpt-6-luna`, reasoning `medium`, Codex CLI `0.163.0`**.
+Execution uses the existing **ChatGPT subscription login**, not a direct model
+API client or API-key fallback. It consumes subscription quota; no token-budget
+stop or dollar-cost estimator is implemented.
+
+The [six-task report](docs/results/2026-10-19-personal-six-task.md) records all
+12 agent runs. Kitsune's total input was only 0.61% higher, while its raw elapsed
+was 8.77% higher; a no-model intervention identified stale tab-list cache polling
+as a major setup delay. See [optimization findings and logs](docs/optimization-findings.md).
+This is one fixed-order variant, **not a general ranking**; strict output-format
+and tab-preservation grading affect scores. The [first one-task report](docs/results/2026-10-19-personal-current-page.md)
+remains a separate historical experiment.
 
 ## Setup
 
-Requires Python 3.11+, uv, Node/npm, a supported Codex ChatGPT login, and the
-Kitsune source checkout (normally the sibling `../kitsune`).
+Requires Python 3.11+, uv, Node/npm, a supported Codex ChatGPT login and the
+Kitsune source checkout (normally sibling `../kitsune`).
 
 ```sh
 uv sync --locked
@@ -31,119 +43,78 @@ npm ci --ignore-scripts --no-audit --no-fund
 npm run setup:firefox
 ```
 
-Python dependencies are pinned by `uv.lock` (psutil 7.2.2; no model SDK). npm tools
-are pinned by `package-lock.json` (Playwright MCP 0.0.83, web-ext 10.8.0).
-The Firefox setup helper uses `artifacts/browsers` and disables shared-cache GC.
-No everyday browser profile is used by the automated pair runner.
+npm pins Playwright MCP `0.0.83` and web-ext `10.8.0`; Python uses locked psutil.
+Firefox is installed in a **private cache with shared-cache GC disabled**.
+Automated paired commands use the same private Firefox binary, separate fresh
+profiles and private Kitsune bridge ports. No everyday Firefox/Zen profile or
+real personal account is connected. Personal fixtures preload synthetic tabs,
+data and test-session cookies before agent tool use.
 
-## Inspect without using the model
+## Start small
 
 ```sh
+# CLI/version/login diagnostics only; no inference.
 uv run --locked python -m browser_mcp_bench doctor --json
-uv run --locked python -m browser_mcp_bench smoke
-uv run --locked python -m browser_mcp_bench benchmark
+
+# Plan one personal task pair; no browser or model calls.
+uv run --locked python -m browser_mcp_bench personal --task pb-current-01 --variant 0
+
+# Explicitly consumes subscription usage: at most two agent runs.
+uv run --locked python -m browser_mcp_bench personal \
+  --task pb-current-01 --variant 0 --execute
+```
+
+A separately budgeted six-task pilot is `personal --execute` (**up to 12 agent
+runs**, not all 24 specs). Do not start it just to inspect configuration.
+Use `--kitsune-project` or `--codex` for non-default paths. See the
+[running guide](docs/running.md) for track commands, input validation, quota,
+stopping behavior, exit codes and evidence inspection.
+
+## Tests
+
+```sh
+# No real model calls. Native browser integration tests are opt-in.
 uv run --locked python -m unittest discover -s tests -v
+
+# Real native MCP/Firefox fixture tests, still no model inference.
+PERSONAL_BROWSER_TEST=1 PERSONAL_KITSUNE_TEST=1 \
+  uv run --locked python -m unittest discover -s tests -p 'test_personal.py' -v
 ```
 
-`doctor` checks Codex version/help/login only. It flags API credential environment
-variables in the caller's environment; actual runs use a restricted child
-environment that omits those variables. The runner discovers an unambiguous
-nvm Codex installation or accepts explicit `--codex /path/to/codex`.
+## Layout and detailed docs
 
-## Run the isolated smoke pair
+| Path | Purpose |
+| --- | --- |
+| `configs/benchmarks/personal.json` | Model/pins, default six-task pilot selection, time budget |
+| `tasks/personal/catalog.json` | All 24 task specifications, implementation status and source references |
+| `browser_mcp_bench/` | Codex execution/audit, paired lifecycle, fixtures, evaluators and resource collection |
+| `artifacts/` | Private, gitignored raw evidence and browser/vendor resources |
+| [Documentation index](docs/README.md) | Guide map, track status and source-of-truth boundaries |
+| [Personal protocol](docs/personal-browsing.md) | Catalog, session/reset setup, state-based grading and provenance |
+| [Codex harness](docs/codex-harness.md) | Authentication, tool policy, generic runs and process cleanup |
+| [Resource methodology](docs/resources.md) | CPU/RSS scope, attribution and sampling caveats |
+| [Optimization findings](docs/optimization-findings.md) | Evidence-backed cache/observation/schema targets, RPC logs and offline analysis |
+| [MiniWoB integration](docs/miniwob.md) | Original task/reward adapter, distinct from personal tasks |
+| [MCP candidates](docs/comparison-candidates.md) | Future server/browser cohorts, not implemented benchmark adapters |
 
-```sh
-uv run --locked python -m browser_mcp_bench smoke --execute
-```
+## Interpretation and safety
 
-Uses `configs/experiments/smoke.json`: read the Example Domain page in a new tab.
-The final answer is not an external success label, so smoke executions remain
-`completed_unscored`. Artifacts go to private, gitignored `artifacts/smoke/`.
+- The evaluation unit is **model + Codex + MCP configuration**, not an intrinsic
+  model/server score. Current reports are fixed-order, single-attempt pairs.
+- Read external `scorable` and `task_success`, not just exit status or the final
+  chat answer. Generic `completed_unscored` and an external success can coexist.
+- Input usage **includes cached input**. Do not add cached tokens again or infer
+  subscription charges/remaining quota from token counts.
+- Personal elapsed time includes hidden setup/readiness/inventory calls;
+  these are counted separately from agent calls. Startup asymmetry, cache effects
+  and unverified effective viewport equivalence remain confounders.
+- Local summed RSS is not unique physical memory; remote inference is not measured.
+- The personal catalog is newly authored with benchmark design references, not
+  imported WebArena/WebVoyager/AssistantBench tasks or official upstream scores.
+  All implemented apps are synthetic and local; 18 tasks remain spec-only.
+- MCP servers are trusted code. Codex's read-only workspace does not make browser
+  mutations read-only. Use controlled test data; keep raw logs/profiles/tokens
+  private and review/redact before sharing. User auth/config is never edited.
 
-The pair runner starts private HTTP/WS bridge ports and a temporary Firefox
-profile for Kitsune using a copy of its extension. Only the copy's WebSocket
-endpoint changes; the original extension and normal Zen profile are untouched.
-Use `--kitsune-project /absolute/path/to/kitsune` for a non-sibling checkout.
-
-## Run the external MiniWoB++ pilot
-
-```sh
-# Fetch pinned upstream source; no inference without --execute.
-uv run --locked python -m browser_mcp_bench benchmark --fetch
-
-# Actual quota-consuming paired task with original reward telemetry.
-uv run --locked python -m browser_mcp_bench benchmark --execute
-```
-
-Configuration: `configs/benchmarks/miniwob.json`. Source revision:
-`33c3b4ddef8c6eb67c57a29663d844b1eda7e614` from Farama-Foundation/miniwob-plusplus.
-The source must remain clean. Original task files are served locally without
-modifying the checkout. Response-layer instrumentation seeds randomness, sets
-the documented episode budget, and forwards original `core.endEpisode` rewards.
-
-This track exposes UI observation/interaction tools only; JS execution, workflows,
-and batch/raw-code tools are not exposed. Each target gets one seeded episode;
-restarts/reloads, malformed reward events, and execution audit failures are
-not scorable. Grading uses original reward events, **not the model's answer**.
-It is client-side telemetry, not a hardened anti-cheating boundary.
-
-Artifacts go to private `artifacts/miniwob/`; per-run `evaluation.json` and
-pair-level `benchmark-summary.json` retain the verdict and its limitations.
-Generic execution status remains separate from task success.
-
-## Individual runs and configurations
-
-`plan`/`run` also accept explicit server/task JSON and `--model gpt-6.1-sol`.
-See [Codex integration](docs/codex-harness.md) before using generic `run`, which
-requires an operator-confirmed isolated browser and does not provision one.
-
-- `configs/servers/playwright.json`: generic pinned package configuration.
-- `configs/servers/kitsune.example.json`: replace its local checkout path.
-- `configs/local/`: gitignored machine-specific configuration.
-- `enabled_tools`: optional native-tool allowlist; the full native toolset is
-  used when omitted, while the external UI pilot has an explicit restricted set.
-
-## Resource measurement
-
-Each run and pair writes `resources.jsonl` and `resource-summary.json`.
-Measurements include RSS bytes, observed CPU user/system deltas, one-core CPU
-percent, process count/status/identity, and system RAM/swap reference values.
-Groups separate owner, component, and lifecycle phase. Final live processes are
-recorded; per-run externally managed roots are not mistaken for pair-end leaks.
-
-**Summed RSS is not unique physical RAM** and can double-count shared pages.
-Peaks are sampled; short-lived children and final CPU tails can be missed.
-Remote GPT inference resources are not measured. System memory includes unrelated
-apps. Kitsune's web-ext launcher is test infrastructure and is reported separately.
-See [resource measurement details](docs/resources.md).
-
-## Reports and documentation
-
-- [First smoke pair](docs/results/2026-10-18-smoke.md)
-- [MiniWoB pilot with resource measurements](docs/results/2026-10-18-miniwob.md)
-- [Codex integration and safety](docs/codex-harness.md)
-- [Resource collection and interpretation](docs/resources.md)
-- [MiniWoB setup, instrumentation, and evaluator](docs/miniwob.md)
-- [Additional browser MCP candidates and comparison cohorts](docs/comparison-candidates.md)
-
-## Fairness, safety, and remaining work
-
-The evaluation unit is **model + Codex + MCP configuration**, not an intrinsic
-model/server score. Fix versions, instructions, task seeds/state, budgets, and
-evaluator before comparing. Preserve native schemas rather than normalizing away
-tool design. Match browser/viewports and counterbalance run order; repeat tasks.
-
-Current pilots have one fixed-order pair, shared prompt-cache effects, and
-startup asymmetry: Kitsune's browser/bridge start outside the timed agent run,
-while Playwright may start its browser inside a timed tool call. The pair-level
-resource trace records setup separately but does not remove that asymmetry.
-
-Use test accounts/controlled sites for mutations. MCP servers are trusted code;
-Codex's read-only workspace sandbox does not make browser actions read-only.
-Raw logs can contain page data, screenshots, or reasoning: keep them private and
-review/redact before sharing. Credentials, browser profiles, downloaded source,
-and generated artifacts are gitignored. No user authentication config is edited.
-
-WebArena-Verified remains a future target: this machine currently has no Docker
-CLI/engine. Its self-hosted environment and independent deterministic evaluator
-must be provisioned before claiming WebArena results.
+WebArena, live personal accounts, complete tool/prompt attestation, repeated and
+counterbalanced statistics, and token-budget stopping remain future work.

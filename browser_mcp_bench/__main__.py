@@ -11,6 +11,7 @@ from .doctor import diagnose
 from .specs import load_server, load_task
 from .smoke import run_pair
 from .miniwob import run_benchmark
+from .personal import run_personal
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -34,7 +35,7 @@ def main(argv: list[str] | None = None) -> int:
             child.add_argument("--output-root", default="runs")
             child.add_argument("--confirm-isolated-browser", action="store_true",
                                help="Confirm a dedicated test browser/profile, not your everyday session")
-    smoke = subparsers.add_parser("smoke", help="Plan or explicitly execute the isolated GPT-6.1-Sol smoke pair")
+    smoke = subparsers.add_parser("smoke", help="Plan or explicitly execute the isolated smoke pair")
     smoke.add_argument("--execute", action="store_true", help="Start private browsers and consume subscription quota")
     smoke.add_argument("--codex", default="codex")
     smoke.add_argument("--kitsune-project", help="Kitsune source checkout; defaults to sibling directory")
@@ -44,6 +45,12 @@ def main(argv: list[str] | None = None) -> int:
     benchmark.add_argument("--fetch", action="store_true", help="Download the pinned upstream source, without inference unless --execute")
     benchmark.add_argument("--codex", default="codex")
     benchmark.add_argument("--kitsune-project")
+    personal = subparsers.add_parser("personal", help="Personal browsing: 24 specs, six runnable local tasks; plan by default")
+    personal.add_argument("--execute", action="store_true", help="Run selected pairs; consumes subscription quota")
+    personal.add_argument("--task", action="append", dest="task_ids", help="Runnable task ID; repeat to select several; default: six pilot tasks")
+    personal.add_argument("--variant", type=int, choices=(0, 1, 2), default=0)
+    personal.add_argument("--codex", default="codex")
+    personal.add_argument("--kitsune-project")
     args = parser.parse_args(argv)
     try:
         if args.command == "doctor":
@@ -55,6 +62,16 @@ def main(argv: list[str] | None = None) -> int:
                     print(f"{'OK' if check['passed'] else 'FAIL'} {check['name']}: {check['detail']}")
                 print("No model invoked. These checks do not certify benchmark readiness.")
             return 0 if report["prerequisites_ok"] else 2
+        if args.command == "personal":
+            result = run_personal(execute=args.execute, task_ids=args.task_ids, variant=args.variant,
+                                  executable=args.codex, kitsune_project=args.kitsune_project)
+            print(json.dumps(result, indent=2, ensure_ascii=False))
+            if not args.execute:
+                return 0
+            return 0 if result["completed_pairs"] == result["requested_pairs"] and all(
+                len(pair["results"]) == 2 and all(
+                    run.get("benchmark_evaluation", {}).get("scorable") for run in pair["results"].values())
+                for pair in result["pairs"]) else 3
         if args.command == "benchmark":
             result = run_benchmark(execute=args.execute, fetch=args.fetch,
                                    executable=args.codex, kitsune_project=args.kitsune_project)
