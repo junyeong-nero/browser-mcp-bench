@@ -344,7 +344,7 @@ def isolated_kitsune(folder):
     """Match the paired runner's isolated Firefox/extension setup, without Codex."""
     import secrets
     import subprocess
-    project = ROOT.parent / "kitsune"
+    project = Path(os.environ.get("KITSUNE_PROJECT", ROOT.parent / "kitsune"))
     env = codex_environment(resolve("codex"))  # resolve only; no Codex process/login/model call
     env["PLAYWRIGHT_BROWSERS_PATH"] = str(ROOT / "artifacts/browsers")
     binary = subprocess.run(["node", "-e", "console.log(require('playwright').firefox.executablePath())"],
