@@ -1,4 +1,4 @@
-"""Codex CLI orchestration. No direct model API client or credential copying."""
+"""Codex / Claude Code CLI orchestration. No direct model API client or credential copying."""
 
 from __future__ import annotations
 
@@ -14,6 +14,7 @@ import tempfile
 import time
 import uuid
 
+from . import claude_harness
 from .audit import audit_events
 from .doctor import diagnose
 from .runtime import codex_environment, find_codex
@@ -34,6 +35,11 @@ COMMON_INSTRUCTIONS = (
     "If blocked, report the blocker honestly. State the final result concisely. "
     "Do not claim that an external evaluator has marked the task successful."
 )
+HARNESSES = ("codex", "claude", "claude-api", "claude-api-full")
+CLAUDE_HARNESSES = ("claude", "claude-api", "claude-api-full")
+# API-key harnesses: claude-api uses --bare (first-paragraph tool descriptions);
+# claude-api-full omits --bare, so the client sends full descriptions.
+API_HARNESSES = ("claude-api", "claude-api-full")
 REQUIRED_EXEC_FLAGS = (
     "--ignore-user-config", "--ignore-rules", "--ephemeral", "--json",
     "--output-last-message", "--skip-git-repo-check",
@@ -81,11 +87,69 @@ def command(executable: str, server: Server, model: str, final_path: Path) -> li
     return argv + ["-"]
 
 
-def resolve(executable: str) -> str:
+def resolve(executable: str, harness: str = "codex") -> str:
+    if harness in CLAUDE_HARNESSES:
+        found = claude_harness.find_claude(executable)
+        if found is None:
+            raise ValueError("Claude Code not found; pass --claude with the executable path.")
+        return str(Path(found).absolute())
     found = find_codex(executable)
     if found is None:
         raise ValueError("Codex not found; pass --codex with the executable path.")
     return str(Path(found).absolute())
+
+
+def harness_pins(spec: dict, harness: str) -> tuple[str, str]:
+    """Return (model, effort) for a harness after checking its CLI version pin."""
+    if harness in CLAUDE_HARNESSES:
+        pins = spec.get("claude_code")
+        if not isinstance(pins, dict) or pins.get("version") != claude_harness.PINNED_CLAUDE_VERSION:
+            raise ValueError("Experiment lacks a Claude Code pin matching " + claude_harness.PINNED_CLAUDE_VERSION)
+        return text(pins.get("model"), "model"), pins.get("effort", "medium")
+    if harness != "codex":
+        raise ValueError("Unknown harness.")
+    if spec["codex_version"] != PINNED_CODEX_VERSION or spec["reasoning_effort"] != "medium":
+        raise ValueError("Experiment differs from adapter pins.")
+    return spec["model"], spec["reasoning_effort"]
+
+
+def harness_environment(harness: str, path: str, server: Server | None = None,
+                        codex_home: str | None = None) -> dict[str, str]:
+    extra = server.env_vars if server is not None else ()
+    if harness in API_HARNESSES:
+        key = claude_harness.load_api_key()
+        workspace, _ = claude_harness.resolve_workspace(key)
+        return claude_harness.claude_environment(path, extra, server=server, api_key=key, workspace_id=workspace)
+    if harness == "claude":
+        return claude_harness.claude_environment(path, extra, server=server)
+    return codex_environment(path, codex_home, extra)
+
+
+def claude_budget(spec: dict, harness: str) -> float | None:
+    """Per-run --max-budget-usd for API-key runs; subscription runs are not dollar-capped."""
+    if harness not in API_HARNESSES:
+        return None
+    value = spec.get("claude_code", {}).get("max_budget_usd_per_run")
+    if not isinstance(value, (int, float)) or isinstance(value, bool) or value <= 0:
+        raise ValueError("claude-api requires claude_code.max_budget_usd_per_run in the experiment config.")
+    return float(value)
+
+
+def claude_preflight(path: str, env: dict[str, str], *, api: bool = False, model: str | None = None) -> dict:
+    report = claude_harness.diagnose(path, env=env, api=api, model=model)
+    if not report["prerequisites_ok"]:
+        failures = ", ".join(c["name"] for c in report["checks"] if not c["passed"])
+        raise ValueError("Claude Code preflight failed: " + failures)
+    version = next(c["detail"] for c in report["checks"] if c["name"] == "claude_version")
+    if version != "claude-code " + claude_harness.PINNED_CLAUDE_VERSION:
+        raise ValueError("Claude Code version differs from the validated pin " + claude_harness.PINNED_CLAUDE_VERSION)
+    return report
+
+
+def harness_preflight(harness: str, path: str, env: dict[str, str], model: str | None = None) -> dict:
+    if harness in CLAUDE_HARNESSES:
+        return claude_preflight(path, env, api=harness in API_HARNESSES, model=model)
+    return preflight(path, env)
 
 
 def plan(server: Server, task: Task, model: str, executable: str = "codex", timeout: int = 300) -> dict:
@@ -178,37 +242,57 @@ def run(
     confirm_isolated_browser: bool = False,
     resource_roots: tuple[ResourceRoot, ...] = (),
     resource_observer: ResourceCollector | None = None,
+    harness: str = "codex", effort: str = "medium", max_budget_usd: float | None = None,
 ) -> dict:
+    if harness not in HARNESSES:
+        raise ValueError("Unknown harness.")
+    if harness in API_HARNESSES and max_budget_usd is None:
+        raise ValueError("claude-api runs require a per-run dollar cap.")
     if os.name != "posix":
         raise ValueError("Process-group cleanup is currently supported only on POSIX.")
     if not confirm_isolated_browser:
         raise ValueError("Use --confirm-isolated-browser only after setting up a dedicated test browser/profile.")
     positive_int(timeout, "timeout")
     text(model, "model")
-    path = resolve(executable)
-    env = codex_environment(path, codex_home, server.env_vars)
-    preflight_report = preflight(path, env)
+    path = resolve(executable, harness)
+    env = harness_environment(harness, path, server, codex_home)
+    preflight_report = harness_preflight(harness, path, env, model)
     root = Path(output_root).expanduser().absolute()
     root.mkdir(parents=True, exist_ok=True, mode=0o700)
     run_dir = root / (datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ-") + uuid.uuid4().hex[:12])
     run_dir.mkdir(mode=0o700)
     final_path = run_dir / "final.txt"
-    argv = command(path, server, model, final_path)
+    if harness in CLAUDE_HARNESSES:
+        api = harness in API_HARNESSES
+        argv = claude_harness.command(path, server, model, COMMON_INSTRUCTIONS, effort,
+                                      api=api, max_budget_usd=max_budget_usd, bare=harness == "claude-api")
+        versions = {"harness": "claude_code", "claude_code_version": claude_harness.PINNED_CLAUDE_VERSION,
+                    "auth_policy": "anthropic_api_key_from_env_file" if api else "claude_ai_subscription_only"}
+        if api:
+            # Workspace IDs are not secrets; record which workspace is billed.
+            header = env.get("ANTHROPIC_CUSTOM_HEADERS", "")
+            versions["anthropic_workspace_id"] = header.split(":", 1)[1].strip() if header else None
+    else:
+        argv = command(path, server, model, final_path)
+        versions = {"harness": "codex", "codex_version": PINNED_CODEX_VERSION,
+                    "auth_policy": "chatgpt_subscription_only"}
     manifest = {
-        "schema_version": 1, "harness": "codex", "codex_version": PINNED_CODEX_VERSION,
+        "schema_version": 1, **versions,
         "created_at": datetime.now(timezone.utc).isoformat(),
-        "model": model, "reasoning_effort": "medium",
+        "model": model, "reasoning_effort": effort,
         "server": asdict(server), "task": asdict(task),
         "harness_sha256": hashlib.sha256(b"".join(
             p.name.encode() + b"\x00" + p.read_bytes()
             for p in sorted(Path(__file__).parent.glob("*.py"))
         )).hexdigest(),
         "prompt_sha256": hashlib.sha256(task.prompt.encode()).hexdigest(),
-        "timeout_sec": timeout, "auth_policy": "chatgpt_subscription_only",
+        "timeout_sec": timeout,
         "argv": argv, "preflight": preflight_report,
         "isolated_browser_confirmed_by_operator": True,
         "environment_reset": "not_implemented", "external_evaluation": "not_implemented",
-        "token_budget": "not_enforced", "api_cost": None,
+        "token_budget": "not_enforced",
+        "api_cost": ({"max_budget_usd_per_run": max_budget_usd, "source": "Claude Code total_cost_usd estimate"}
+                     if max_budget_usd is not None else None),
         "resource_sampling_interval_sec": 1.0,
         "privacy": "Private raw artifacts; review/redact before sharing.",
     }
@@ -244,11 +328,19 @@ def run(
                         resources.set_phase("cleanup")
                         terminate_group(process)
                     returncode = process.returncode
+    if harness in CLAUDE_HARNESSES:
+        audit = claude_harness.audit_events(
+            events_path, allowed_tools=server.enabled_tools or None,
+            expected_key_source="ANTHROPIC_API_KEY" if harness in API_HARNESSES else "none")
+        final = audit.pop("final_message")
+        if final is not None:
+            final_path.write_text(final)
+    else:
+        audit = audit_events(events_path, allowed_tools=server.enabled_tools or None)
     # Even stderr and successful final answers may contain private page contents.
     for file in run_dir.iterdir():
         if file.is_file():
             file.chmod(0o600)
-    audit = audit_events(events_path, allowed_tools=server.enabled_tools or None)
     if interrupted:
         status = "interrupted"
     elif timed_out:
@@ -264,6 +356,7 @@ def run(
     summary = {
         "schema_version": 1, "run_dir": str(run_dir), "execution_status": status,
         "returncode": returncode, "elapsed_sec": round(time.monotonic() - started, 3),
+        "harness": versions["harness"],
         "model": model, "server_id": server.id, "task_id": task.id, **audit,
         "resources": {
             "summary_path": str(run_dir / "resource-summary.json"),

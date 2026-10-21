@@ -22,7 +22,7 @@ already-open tabs and a pre-established test session.
 
 | Track | Purpose | Implementation | Observed evidence |
 | --- | --- | --- | --- |
-| **Personal browsing** | Existing tabs, test sessions, lookup, drafts and safe mutations | 24 original specifications; six runnable local fixtures, each with three data variants | Six variant-0 pairs on `gpt-6-luna`, all scorable; current grader 3/6 Playwright vs 4/6 Kitsune, with format/preservation caveats; 2026-10-19 |
+| **Personal browsing** | Existing tabs, test sessions, lookup, drafts and safe mutations | 24 original specifications, all runnable local fixtures, each with three data variants | 24 variant-0 pairs on Claude Code + `claude-haiku-5-5`: 21/24 Playwright vs 23/24 Kitsune, 2026-10-21; six-task Codex `gpt-6-luna` pilot 3/6 vs 4/6, 2026-10-19 |
 | **MiniWoB++ UI pilot** | Small upstream-task/original-reward integration check | Only `click-test-2`, seed 42; not the complete MiniWoB++ suite | One pair passed with historical `gpt-6.1-sol`, 2026-10-18 |
 | **Read-only smoke** | Browser/MCP connectivity and native-tool smoke | Example Domain task; no external task-success grader | One completed historical `gpt-6.1-sol` pair, 2026-10-18 |
 | **WebArena / live personal accounts** | Future realistic/multi-step tracks | Not provisioned or implemented | No results |
@@ -37,6 +37,7 @@ pair is not a general success rate, tool ranking or security certification.
 | --- | --- |
 | [Running guide](running.md) | Operational sequence, command selection, cost boundaries, exit codes |
 | [Personal browsing protocol](personal-browsing.md) | Personal-session task design, provenance, fixture/evaluation/reset contract |
+| [Personal-state track](personal-state.md) | Specification only: tasks that need a personal profile's history, bookmarks or logins |
 | [Task catalog](../tasks/personal/catalog.json) | Per-task requests, initial state, success/safety criteria, implementation status |
 | [Personal execution config](../configs/benchmarks/personal.json) | Model/pins, default pilot selection and wall-clock budget |
 | [Codex integration](codex-harness.md) | Authentication, isolation, native tool policy, process lifecycle and trace audit |

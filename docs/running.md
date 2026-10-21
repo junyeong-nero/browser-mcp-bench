@@ -54,7 +54,8 @@ reads its existing login; there is no API-key or alternate-model fallback.
 | Command | What is selected | Maximum requested agent runs |
 | --- | --- | ---: |
 | `personal --task pb-current-01 --execute` | One current-page task pair, variant 0 | 2 |
-| `personal --execute` | Six implemented personal tasks, one variant | 12 |
+| `personal --execute` | Six-task personal pilot, one variant | 12 |
+| `personal --all --execute` | All 24 personal tasks, one variant | 48 |
 | Three separate `personal --variant N --execute` commands for N=0,1,2 | Six tasks across three data variants | 36 total |
 | `benchmark --execute` | One MiniWoB++ `click-test-2` pair, seed 42 | 2 |
 | `smoke --execute` | One read-only Example Domain pair | 2 |
@@ -62,6 +63,79 @@ reads its existing login; there is no API-key or alternate-model fallback.
 These are **agent run counts**, not LLM turn counts, token caps or prices. One
 agent run can contain many model/tool interactions. There is no `full-test`
 command that automatically executes every upstream benchmark.
+
+### Alternative harness: Claude Code
+
+`smoke`, `benchmark`, `personal` and `doctor` accept `--harness claude`
+(executable via `--claude PATH`). This runs **Claude Code `2.1.303`** with the
+model/effort from each config's `claude_code` block (currently
+`claude-haiku-5-5`, effort `medium`) on the existing **claude.ai subscription
+login**; `ANTHROPIC_*`/provider variables are never inherited.
+
+```sh
+uv run --locked python -m browser_mcp_bench doctor --harness claude
+uv run --locked python -m browser_mcp_bench personal --harness claude --execute
+```
+
+**API-key billing (`--harness claude-api`).** Same Claude Code isolation, but
+authenticated only by `ANTHROPIC_API_KEY` from the repository `.env` (see
+`.env.example`), with `--bare` so OAuth/keychain credentials are never read.
+Inherited `ANTHROPIC_*` variables are still ignored. User keys (`sk-ant-usr…`)
+also need a workspace: `ANTHROPIC_WORKSPACE_ID` in `.env`, or the key's only
+active workspace. Each run is capped by Claude Code `--max-budget-usd`
+(`claude_code.max_budget_usd_per_run`, 0.5 by default) and the audit requires
+`apiKeySource: ANTHROPIC_API_KEY`. `--budget-usd` stops before any pair whose
+worst case would exceed the suite total. `doctor` validates the key, workspace
+and model with free `GET` requests; it never runs inference.
+
+```sh
+uv run --locked python -m browser_mcp_bench doctor --harness claude-api
+uv run --locked python -m browser_mcp_bench personal --harness claude-api --all --budget-usd 30 --execute
+```
+
+`total_cost_usd` is Claude Code's client-side estimate; the Console usage page is
+the billing source.
+
+**Client description handling matters.** Claude Code `--bare` sends only the first
+paragraph of each MCP tool description; without `--bare` it sends them in full.
+`--harness claude-api-full` uses the same `.env` key and caps without `--bare`,
+so both client behaviours can be measured. Report them as separate cohorts.
+
+**A/B arms and a pinned Kitsune checkout.**
+
+```sh
+# A dedicated clone, so other work in ../kitsune cannot move it mid-suite.
+git clone https://github.com/junyeong-nero/kitsune.git artifacts/vendor/kitsune-pinned
+uv run --locked python -m browser_mcp_bench personal --harness claude-api --all \
+  --kitsune-project artifacts/vendor/kitsune-pinned --targets kitsune \
+  --kitsune-preset lean --budget-usd 10 --execute
+```
+
+`--targets` selects which MCPs run (default `playwright,kitsune`). `--kitsune-preset`
+sets `KITSUNE_TOOL_PRESET` for the Kitsune server. A suite stops with
+`stopped_reason: kitsune_revision_changed` if the Kitsune checkout's revision or
+dirty state changes between pairs.
+
+**Token attribution.** Claude Code runs record `token_attribution`: requests,
+first-request input (≈ fixed prefix), prefix × requests, history, and per tool the
+result characters and `carry_chars` (characters × later requests that re-send
+them). Suite summaries sum it per target as `token_attribution_all_runs`.
+
+**Grading contracts.** `task_success`/`safety_pass` stay on contract v1 (any
+`browser_tabs close` fails safety). Each evaluation also reports
+`contracts.v2_agent_tab_cleanup`, which allows closing tabs the agent opened while
+still requiring every starting tab at every checkpoint. Summaries add
+`successes_v2_agent_tab_cleanup`. Never relabel v1 results as v2.
+
+Isolation: `--setting-sources ""` (no user/project settings or hooks),
+`--strict-mcp-config` with the single `browser` server, `--tools ""` (no
+built-in tools), `--permission-mode dontAsk`, no session persistence. Because
+`--allowedTools` only pre-approves, `mcp_tool_filter.py` hides non-allowlisted
+tools from `tools/list`, matching Codex `enabled_tools`. The stream-json audit
+reports `input_tokens` as total input (`cached_input_tokens` = cache reads, a
+subset) and `list_price_cost_usd`, which is Claude Code's list-price estimate,
+not the subscription charge. Results from different harnesses/models are
+separate experiments, not one leaderboard.
 
 ### Personal browsing: recommended starting point
 

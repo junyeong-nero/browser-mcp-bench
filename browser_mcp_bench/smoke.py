@@ -10,6 +10,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import secrets
 import shutil
 import socket
@@ -20,12 +21,13 @@ import urllib.error
 import urllib.request
 import uuid
 
-from .adapter import PINNED_CODEX_VERSION, preflight, resolve, run, terminate_group, write_json
-from .runtime import codex_environment
+from .adapter import (API_HARNESSES, PINNED_CODEX_VERSION, claude_budget, harness_environment, harness_pins, harness_preflight,
+                      resolve, run, terminate_group, write_json)
 from .resources import ResourceCollector, ResourceRoot
 from .specs import Server, Task, identifier, load_task, positive_int
 
 ROOT = Path(__file__).resolve().parent.parent
+TARGETS = ("playwright", "kitsune")
 WS_SETTING = "const WS_URL = 'ws://127.0.0.1:47652';"
 
 
@@ -104,10 +106,18 @@ def run_pair(*, execute: bool = False, kitsune_project: str | None = None,
              task_for_target: Callable[[str], Task] | None = None,
              evaluate: Callable[[str, dict], dict] | None = None,
              enabled_tools: dict[str, tuple[str, ...]] | None = None,
-             prepare_server: Callable[[str, Server, Task, Path], Server] | None = None) -> dict:
+             prepare_server: Callable[[str, Server, Task, Path], Server] | None = None,
+             harness: str = "codex", kitsune_preset: str | None = None,
+             targets: tuple[str, ...] = TARGETS) -> dict:
+    """kitsune_preset sets KITSUNE_TOOL_PRESET for the Kitsune server (A/B of its tool surface).
+    targets restricts which MCPs run, e.g. Kitsune-only A/B arms."""
+    if not targets or len(set(targets)) != len(targets) or set(targets) - set(TARGETS):
+        raise ValueError("targets must be a non-empty subset of playwright, kitsune.")
+    if kitsune_preset is not None and not re.fullmatch(r"[a-z][a-z0-9_-]{0,31}", kitsune_preset):
+        raise ValueError("Invalid Kitsune tool preset name.")
     spec = experiment() if experiment_spec is None else experiment_spec
-    if spec["codex_version"] != PINNED_CODEX_VERSION or spec["reasoning_effort"] != "medium":
-        raise ValueError("Experiment differs from adapter pins.")
+    model, effort = harness_pins(spec, harness)
+    max_budget_usd = claude_budget(spec, harness)
     if not execute:
         return {"mode": "smoke_plan_only", "model_invoked": False, "experiment": spec,
                 "next": "Install pinned tools/private Firefox, then use smoke --execute."
@@ -115,9 +125,13 @@ def run_pair(*, execute: bool = False, kitsune_project: str | None = None,
     if os.name != "posix":
         raise ValueError("Smoke process isolation requires POSIX.")
     timeout = spec["timeout_sec"] if timeout is None else positive_int(timeout, "timeout")
-    path = resolve(executable)
-    env = codex_environment(path)
-    preflight(path, env)
+    path = resolve(executable, harness)
+    env = harness_environment(harness, path)
+    harness_preflight(harness, path, env, model)
+    if harness in API_HARNESSES:
+        # The key is re-read per run from .env; keep it out of the shared pair environment.
+        env.pop("ANTHROPIC_API_KEY", None)
+        env.pop("ANTHROPIC_CUSTOM_HEADERS", None)
     project = Path(kitsune_project).expanduser().resolve() if kitsune_project else ROOT.parent / "kitsune"
     if not (project / "extension/manifest.json").is_file():
         raise ValueError("Kitsune source/extension not found; set --kitsune-project.")
@@ -144,18 +158,26 @@ def run_pair(*, execute: bool = False, kitsune_project: str | None = None,
         "KITSUNE_HTTP_PORT": str(http_port), "KITSUNE_WS_PORT": str(ws_port),
         "KITSUNE_TOKEN": secrets.token_urlsafe(32),
     })
+    kitsune_vars = ("KITSUNE_HOME", "KITSUNE_HTTP_PORT", "KITSUNE_WS_PORT", "KITSUNE_TOKEN")
+    if kitsune_preset is not None:
+        env["KITSUNE_TOOL_PRESET"] = kitsune_preset
+        kitsune_vars += ("KITSUNE_TOOL_PRESET",)
     specs = {
         "playwright": Server("playwright", "node", (
             str(playwright_cli), "--browser", "firefox", "--isolated", "--headless",
             "--viewport-size", "1280x720"),
             ("PLAYWRIGHT_BROWSERS_PATH", "PLAYWRIGHT_SKIP_BROWSER_GC", "PWTEST_SOCKETS_DIR"), 60, 45),
         "kitsune": Server("kitsune", "uv", ("run", "--locked", "--project", str(project), "kitsune"),
-            ("KITSUNE_HOME", "KITSUNE_HTTP_PORT", "KITSUNE_WS_PORT", "KITSUNE_TOKEN"), 60, 45),
+            kitsune_vars, 60, 45),
     }
+    specs = {target: server for target, server in specs.items() if target in targets}
     if enabled_tools is not None:
         specs = {target: replace(server, enabled_tools=enabled_tools[target]) for target, server in specs.items()}
     manifest = {
-        "experiment": spec, "enabled_tools": enabled_tools, "browser_binary": str(firefox), "headless": True,
+        "experiment": spec, "harness": harness, "model": model, "reasoning_effort": effort,
+        "max_budget_usd_per_run": max_budget_usd, "kitsune_tool_preset": kitsune_preset,
+        "targets": list(targets),
+        "enabled_tools": enabled_tools, "browser_binary": str(firefox), "headless": True,
         "kitsune_source": source_revision(project), "extension_patch": patch_info,
         "http_port": http_port, "ws_port": ws_port,
         "limitations": ["One fixed-order smoke pair, not benchmark evidence.",
@@ -207,9 +229,10 @@ def run_pair(*, execute: bool = False, kitsune_project: str | None = None,
                 resources.set_phase("task_" + target)
                 external = (ResourceRoot(bridge.pid, "bridge", "kitsune", True),
                             ResourceRoot(browser.pid, "browser_launcher", "kitsune", True)) if target == "kitsune" else ()
-                result = run(server, task, spec["model"], executable=path, timeout=timeout,
+                result = run(server, task, model, executable=path, timeout=timeout,
                              output_root=str(pair_dir / "runs"), confirm_isolated_browser=True,
-                             resource_roots=external, resource_observer=resources)
+                             resource_roots=external, resource_observer=resources,
+                             harness=harness, effort=effort, max_budget_usd=max_budget_usd)
                 if evaluate is not None:
                     evaluation = evaluate(target, result)
                     write_json(Path(result["run_dir"]) / "evaluation.json", evaluation)
@@ -228,7 +251,7 @@ def run_pair(*, execute: bool = False, kitsune_project: str | None = None,
                     os.environ.pop(key, None)
                 else:
                     os.environ[key] = value
-    summary = {"pair_dir": str(pair_dir), "model": spec["model"], "results": results,
+    summary = {"pair_dir": str(pair_dir), "harness": harness, "model": model, "results": results,
                "task_success": None,
                "evaluation": "per_target_external_evaluator" if evaluate else "not_implemented",
                "resource_summary_path": str(pair_dir / "resource-summary.json")}

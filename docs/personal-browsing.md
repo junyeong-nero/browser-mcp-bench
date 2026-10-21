@@ -13,8 +13,10 @@ browser session**, not just opening an empty browser and following a URL.
 
 - **24 specifications:** six categories, four tasks each, in
   [`tasks/personal/catalog.json`](../tasks/personal/catalog.json).
-- **Six runnable local tasks:** one per category. The other **18 are
-  specification-only**, deliberately rejected by the execution command.
+- **All 24 tasks are runnable local fixtures.** The original six (one per
+  category) form the default pilot; `personal --all` selects all 24. The 18
+  newer fixtures live in `browser_mcp_bench/personal_fixtures.py`, grade
+  free-text answers by required facts, and open in-page links in new tabs.
 - **Three deterministic data variants** (`0`, `1`, `2`) per runnable task.
   These are different inputs, not three identical repeated trials.
 - Configuration: [`configs/benchmarks/personal.json`](../configs/benchmarks/personal.json),
@@ -25,6 +27,9 @@ browser session**, not just opening an empty browser and following a URL.
   [report](results/2026-10-19-personal-six-task.md) before interpreting those
   scores: exact-name formatting and all-starting-URL preservation affect them.
   This followed a separate [first one-task pair](results/2026-10-19-personal-current-page.md).
+  All 24 tasks, variant 0, were run on Claude Code + `claude-haiku-5-5` on
+  2026-10-21: 21/24 Playwright vs 23/24 Kitsune
+  ([report](results/2026-10-21-personal-24-claude-haiku.md)).
   Variants 1/2 still have no recorded model evaluation; fixture tests are separate.
 
 This is an original, synthetic **personal-browsing local track**. It is not a

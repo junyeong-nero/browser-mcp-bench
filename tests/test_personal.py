@@ -34,10 +34,11 @@ def opener():
 
 
 class PersonalTests(unittest.TestCase):
-    def test_catalog_covers_24_specs_and_six_runnable(self):
+    def test_catalog_covers_24_runnable_specs_and_six_task_pilot(self):
         data = catalog()
         self.assertEqual(len(data["tasks"]), 24)
         self.assertEqual(len(selected_tasks()), 6)
+        self.assertTrue(all(t["status"] == "runnable" for t in data["tasks"]))
         self.assertEqual(config()["model"], "gpt-6-luna")
         self.assertTrue(all(t["relationship"].startswith("original") for t in data["tasks"]))
         self.assertIn("OPEN RAIL", data["sources"]["assistantbench"]["repository_license_observed"])
@@ -49,8 +50,13 @@ class PersonalTests(unittest.TestCase):
             self.assertEqual(plan["planned_model_runs"], 12)
             with redirect_stdout(io.StringIO()):
                 self.assertEqual(main(["personal", "--task", "pb-tabs-01", "--variant", "2"]), 0)
-                self.assertEqual(main(["personal", "--task", "pb-tabs-02"]), 2)
-        for ids in (["missing"], ["pb-current-02"], ["pb-current-01", "pb-current-01"], []):
+                self.assertEqual(main(["personal", "--task", "pb-tabs-99"]), 2)
+                self.assertEqual(main(["personal", "--all", "--task", "pb-tabs-01"]), 2)
+            out = io.StringIO()
+            with redirect_stdout(out):
+                self.assertEqual(main(["personal", "--all"]), 0)
+            self.assertEqual(json.loads(out.getvalue())["planned_model_runs"], 48)
+        for ids in (["missing"], ["pb-current-01", "pb-current-01"], []):
             with self.assertRaises(ValueError):
                 selected_tasks(ids)
         for variant in (-1, 3, True):

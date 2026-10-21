@@ -15,7 +15,7 @@ to drafts, and respecting do-not-submit/preserve-context boundaries.
 
 | Track | Implemented scope | Actual model evidence |
 | --- | --- | --- |
-| **Personal browsing** | 24 original specifications; **six runnable local tasks**, 18 spec-only; three data variants per implemented task | Six variant-0 pairs on `gpt-6-luna`, all scorable; current grader scores 3/6 Playwright, 4/6 Kitsune, with documented grading/protocol caveats |
+| **Personal browsing** | 24 original specifications, **all runnable** local tasks (six-task pilot default, `--all` for 24); three data variants each | 24 variant-0 pairs on Claude Code + `claude-haiku-5-5`: 21/24 Playwright, 23/24 Kitsune (2026-10-21). Earlier six-task Codex `gpt-6-luna` pilot: 3/6 vs 4/6 |
 | MiniWoB++ UI pilot | Only upstream `click-test-2`, seed 42 | One pair passed with historical `gpt-6.1-sol` on 2026-10-18 |
 | Read-only smoke | Example Domain, no external task-success grader | One completed historical `gpt-6.1-sol` pair on 2026-10-18 |
 

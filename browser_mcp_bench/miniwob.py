@@ -245,7 +245,8 @@ class BenchmarkServer:
 
 
 def run_benchmark(*, execute: bool = False, fetch: bool = False,
-                  kitsune_project: str | None = None, executable: str = "codex") -> dict:
+                  kitsune_project: str | None = None, executable: str = "codex",
+                  harness: str = "codex") -> dict:
     spec = config()
     source = fetch_source(spec) if fetch else ROOT / spec["source_directory"]
     if not execute:
@@ -255,7 +256,7 @@ def run_benchmark(*, execute: bool = False, fetch: bool = False,
     with BenchmarkServer(source, spec) as benchmark:
         result = run_pair(execute=True, kitsune_project=kitsune_project, executable=executable,
             experiment_spec=spec, artifact_scope="miniwob", task_for_target=benchmark.begin,
-            evaluate=benchmark.evaluate, enabled_tools=UI_TOOLS)
+            evaluate=benchmark.evaluate, enabled_tools=UI_TOOLS, harness=harness)
     result["benchmark_config"] = spec
     result["upstream_task_sha256"] = hashlib.sha256(
         (source / "miniwob/html/miniwob" / (spec["task_id"] + ".html")).read_bytes()).hexdigest()
