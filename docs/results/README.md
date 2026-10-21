@@ -8,6 +8,7 @@ tool policies and instrumentation are not a single comparable leaderboard.
 
 | Date | Report | Model | Scope and outcome |
 | --- | --- | --- | --- |
+| 2026-10-21 | [Component gallery](2026-10-21-gallery.md) | `claude-haiku-5-5`, medium (Claude Code API) | 21 tasks × 2 layouts: crowded 20/21 Playwright vs 15/21 Kitsune (3.23× input on joint successes); isolated 21/21 vs 18/21 (1.88×); Kitsune fails shadow DOM, iframe, native video |
 | 2026-10-21 | [Token efficiency analysis](2026-10-21-token-efficiency.md) | `claude-haiku-5-5`, medium (Claude Code API, `--bare`) | 24 pairs, 23/24 each, $0.099; Kitsune +30.5% input, all from the fixed prefix (tool definitions × requests); client truncates descriptions; savings estimates |
 | 2026-10-21 | [All 24 personal tasks, Claude Code](2026-10-21-personal-24-claude-haiku.md) | `claude-haiku-5-5`, medium (Claude Code) | 24 variant-0 pairs / 48 agent runs, all scorable; 21/24 Playwright vs 23/24 Kitsune; Kitsune 1.69× input on the 20 jointly successful tasks |
 | 2026-10-19 | [Six-task personal pilot](2026-10-19-personal-six-task.md) | `gpt-6-luna`, medium | Six variant-0 pairs / 12 agent runs, all scorable; current grader 3/6 Playwright vs 4/6 Kitsune; cache intervention and format/safety caveats documented |

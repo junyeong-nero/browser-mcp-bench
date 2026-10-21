@@ -37,6 +37,7 @@ pair is not a general success rate, tool ranking or security certification.
 | --- | --- |
 | [Running guide](running.md) | Operational sequence, command selection, cost boundaries, exit codes |
 | [Personal browsing protocol](personal-browsing.md) | Personal-session task design, provenance, fixture/evaluation/reset contract |
+| [Component gallery](gallery.md) | Modern components, multimodal puzzles and a hand-off judgement task on one local page |
 | [Personal-state track](personal-state.md) | Specification only: tasks that need a personal profile's history, bookmarks or logins |
 | [Task catalog](../tasks/personal/catalog.json) | Per-task requests, initial state, success/safety criteria, implementation status |
 | [Personal execution config](../configs/benchmarks/personal.json) | Model/pins, default pilot selection and wall-clock budget |

@@ -8,6 +8,7 @@ version = "0.1.0"
 description = "Paired browser MCP evaluation using a subscription-backed Codex harness"
 requires-python = ">=3.11"
 dependencies = [
+    "pillow>=11",
     "psutil==7.2.2",
 ]
 
@@ -16,3 +17,6 @@ browser-mcp-bench = "browser_mcp_bench.__main__:main"
 
 [tool.setuptools.packages.find]
 include = ["browser_mcp_bench*"]
+
+[tool.setuptools.package-data]
+browser_mcp_bench = ["gallery_static/*.js", "gallery_static/*.css"]

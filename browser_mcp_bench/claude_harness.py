@@ -386,6 +386,9 @@ def audit_events(path: Path, *, allowed_tools: tuple[str, ...] | None = None,
     turns = None
     # Token attribution: per-request input (deduplicated by message id), and per tool the
     # result size and how many later requests re-send it ("carry").
+    init_tools: set[str] | None = None
+    hallucinated_calls = 0
+    hallucinated_ids: set[str] = set()
     request_inputs: list[int] = []
     request_ids: set = set()
     call_tool: dict[str, tuple[str, int]] = {}
@@ -411,6 +414,7 @@ def audit_events(path: Path, *, allowed_tools: tuple[str, ...] | None = None,
                     if expected_key_source is not None and event.get("apiKeySource") != expected_key_source:
                         violations.add("unexpected_auth_source")
                     tools = event.get("tools")
+                    init_tools = set(tools) if isinstance(tools, list) else set()
                     if not isinstance(tools, list) or any(
                             not isinstance(t, str) or not t.startswith(MCP_PREFIX) for t in tools):
                         violations.add("unexpected_builtin_tools")
@@ -488,6 +492,12 @@ def audit_events(path: Path, *, allowed_tools: tuple[str, ...] | None = None,
                     if not isinstance(call_id, str):
                         violations.add("missing_mcp_call_id")
                         continue
+                    if init_tools is not None and name not in init_tools:
+                        # The model invented a tool name; Claude Code refuses it, so nothing ran.
+                        # A model error, not a capability breach: counted, not a violation.
+                        hallucinated_calls += 1
+                        hallucinated_ids.add(call_id)
+                        continue
                     calls.add(call_id)
                     call_tool[call_id] = (name[len(MCP_PREFIX):], len(request_inputs) - 1)
                     if allowed_tools is not None:
@@ -506,6 +516,8 @@ def audit_events(path: Path, *, allowed_tools: tuple[str, ...] | None = None,
                         continue
                     call_id = block.get("tool_use_id")
                     if call_id not in calls:
+                        if call_id in hallucinated_ids:
+                            continue
                         violations.add("unmatched_tool_result")
                         continue
                     completed_calls.add(call_id)
@@ -525,6 +537,7 @@ def audit_events(path: Path, *, allowed_tools: tuple[str, ...] | None = None,
         "num_turns": turns,
         "list_price_cost_usd": cost,
         "token_attribution": token_attribution(request_inputs, call_tool, result_chars),
+        "nonexistent_tool_calls": hallucinated_calls,
         "final_message": final,
         "violations": sorted(violations),
         "task_success": None,

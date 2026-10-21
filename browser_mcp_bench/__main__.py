@@ -14,6 +14,7 @@ from .smoke import experiment as smoke_experiment, run_pair
 from .miniwob import UI_TOOLS
 from pathlib import Path
 from .miniwob import run_benchmark
+from .gallery import run_gallery
 from .personal import config as personal_config, pair_complete, run_personal, runnable_ids
 
 
@@ -65,7 +66,18 @@ def main(argv: list[str] | None = None) -> int:
                           help="Comma-separated MCPs to run: playwright,kitsune (default both)")
     personal.add_argument("--budget-usd", type=float,
                           help="claude-api only: stop before a pair whose worst case would exceed this total")
-    for child in (smoke, benchmark, personal):
+    gallery = subparsers.add_parser("gallery", help="Component gallery + multimodal puzzles (21 tasks); plan by default")
+    gallery.add_argument("--execute", action="store_true", help="Run selected tasks; consumes quota or API credit")
+    gallery.add_argument("--task", action="append", dest="task_ids", help="Gallery task ID; repeatable; default all 21")
+    gallery.add_argument("--category", choices=("ui", "multimodal", "judgement"))
+    gallery.add_argument("--layout", choices=("crowded", "isolated"), default="crowded")
+    gallery.add_argument("--variant", type=int, choices=(0, 1, 2), default=0)
+    gallery.add_argument("--codex", default="codex")
+    gallery.add_argument("--kitsune-project")
+    gallery.add_argument("--kitsune-preset")
+    gallery.add_argument("--targets", default="playwright,kitsune")
+    gallery.add_argument("--budget-usd", type=float)
+    for child in (smoke, benchmark, personal, gallery):
         child.add_argument("--harness", choices=HARNESSES, default="codex",
                            help="Agent CLI: codex (ChatGPT login), claude (Claude Code, claude.ai login) "
                                 "claude-api (Claude Code --bare, ANTHROPIC_API_KEY from .env; billed per token) "
@@ -101,6 +113,15 @@ def main(argv: list[str] | None = None) -> int:
                 return 0
             return 0 if result["completed_pairs"] == result["requested_pairs"] and all(
                 pair_complete(pair, tuple(result["targets"])) for pair in result["pairs"]) else 3
+        if args.command == "gallery":
+            result = run_gallery(execute=args.execute, task_ids=args.task_ids, category=args.category, variant=args.variant,
+                                 layout=args.layout, kitsune_project=args.kitsune_project, executable=executable,
+                                 harness=args.harness, budget_usd=args.budget_usd, kitsune_preset=args.kitsune_preset,
+                                 targets=tuple(args.targets.split(",")))
+            print(json.dumps(result, indent=2, ensure_ascii=False))
+            if not args.execute:
+                return 0
+            return 0 if result["completed_pairs"] == result["requested_pairs"] else 3
         if args.command == "benchmark":
             result = run_benchmark(execute=args.execute, fetch=args.fetch,
                                    executable=executable, kitsune_project=args.kitsune_project,

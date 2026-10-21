@@ -94,8 +94,11 @@ class ClaudeHarnessTests(unittest.TestCase):
         foreign = {**INIT, "mcp_servers": [{"name": "browser", "status": "connected"}, {"name": "x"}]}
         self.assertIn("unexpected_mcp_server", audit(foreign, RESULT)["violations"])
         self.assertIn("forbidden_or_unknown_item", audit(INIT, tool_use("a", "Bash"), RESULT)["violations"])
+        invented = audit(INIT, tool_use("z", "mcp__browser__browser_wait"), tool_result("z", True), RESULT)
+        self.assertEqual((invented["violations"], invented["nonexistent_tool_calls"], invented["mcp_calls"]), ([], 1, 0))
+        exposed = {**INIT, "tools": INIT["tools"] + ["mcp__browser__browser_dom"]}  # exists, but not allowlisted
         self.assertIn("tool_outside_benchmark_allowlist",
-                      audit(INIT, tool_use("a", "mcp__browser__browser_dom"), RESULT)["violations"])
+                      audit(exposed, tool_use("a", "mcp__browser__browser_dom"), RESULT)["violations"])
         self.assertIn("forbidden_navigation_scheme",
                       audit(INIT, tool_use("a", url="javascript:alert(1)"), RESULT)["violations"])
         sub = {**tool_use("a"), "parent_tool_use_id": "p"}
