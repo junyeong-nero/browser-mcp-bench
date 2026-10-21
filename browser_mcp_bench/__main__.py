@@ -10,7 +10,9 @@ from .adapter import HARNESSES, plan, run
 from . import claude_harness
 from .doctor import diagnose
 from .specs import load_server, load_task
-from .smoke import run_pair
+from .smoke import experiment as smoke_experiment, run_pair
+from .miniwob import UI_TOOLS
+from pathlib import Path
 from .miniwob import run_benchmark
 from .personal import config as personal_config, pair_complete, run_personal, runnable_ids
 
@@ -43,6 +45,9 @@ def main(argv: list[str] | None = None) -> int:
     smoke.add_argument("--codex", default="codex")
     smoke.add_argument("--kitsune-project", help="Kitsune source checkout; defaults to sibling directory")
     smoke.add_argument("--timeout", type=int, help="Wall-clock seconds per agent run")
+    smoke.add_argument("--task", dest="task_file", help="Task JSON ({id, prompt}) instead of the default read-only smoke task")
+    smoke.add_argument("--ui-tools", action="store_true", help="Expose only the benchmark UI tool allowlist to each MCP")
+    smoke.add_argument("--targets", default="playwright,kitsune", help="Comma-separated MCPs to run")
     benchmark = subparsers.add_parser("benchmark", help="MiniWoB++ UI-only pilot; defaults to a plan")
     benchmark.add_argument("--execute", action="store_true", help="Run the pinned external task; consumes subscription quota")
     benchmark.add_argument("--fetch", action="store_true", help="Download the pinned upstream source, without inference unless --execute")
@@ -107,13 +112,20 @@ def main(argv: list[str] | None = None) -> int:
             return 0 if len(results) == 2 and all(
                 item.get("benchmark_evaluation", {}).get("scorable") for item in results.values()) else 3
         if args.command == "smoke":
+            spec = None
+            if args.task_file:
+                load_task(args.task_file)  # validate before any process starts
+                spec = {**smoke_experiment(), "task": str(Path(args.task_file).resolve())}
+            targets = tuple(args.targets.split(","))
             result = run_pair(execute=args.execute, kitsune_project=args.kitsune_project,
-                              executable=executable, timeout=args.timeout, harness=args.harness)
+                              executable=executable, timeout=args.timeout, harness=args.harness,
+                              experiment_spec=spec, targets=targets,
+                              enabled_tools=UI_TOOLS if args.ui_tools else None)
             print(json.dumps(result, indent=2, ensure_ascii=False))
             if not args.execute:
                 return 0
             results = result["results"]
-            return 0 if len(results) == 2 and all(
+            return 0 if len(results) == len(targets) and all(
                 item["execution_status"] == "completed_unscored" for item in results.values()) else 3
         server, task = load_server(args.server), load_task(args.task)
         if args.command == "plan":

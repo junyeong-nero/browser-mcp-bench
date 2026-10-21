@@ -116,6 +116,17 @@ sets `KITSUNE_TOOL_PRESET` for the Kitsune server. A suite stops with
 `stopped_reason: kitsune_revision_changed` if the Kitsune checkout's revision or
 dirty state changes between pairs.
 
+**Live-site tasks.** `smoke --task FILE` runs any `{id, prompt}` task in the same
+isolated browsers without a grader. Add `--ui-tools` for the benchmark UI allowlist
+and `--targets` to pick MCPs. Live sites change, so judge results from the trace and
+screenshots, and never treat them as benchmark scores.
+
+```sh
+uv run --locked python -m browser_mcp_bench smoke --harness claude-api \
+  --task tasks/live/steam-goty-2025-negative-100h.json --ui-tools --targets kitsune \
+  --kitsune-project artifacts/vendor/kitsune-pinned --timeout 300 --execute
+```
+
 **Token attribution.** Claude Code runs record `token_attribution`: requests,
 first-request input (≈ fixed prefix), prefix × requests, history, and per tool the
 result characters and `carry_chars` (characters × later requests that re-send
