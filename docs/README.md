@@ -46,6 +46,12 @@ pair is not a general success rate, tool ranking or security certification.
 | [Optimization findings](optimization-findings.md) | Causal cache evidence, token/observation candidates, native diagnostic logging and offline analysis |
 | [MiniWoB++ integration](miniwob.md) | Pinned upstream task, reward instrumentation and non-standard track limits |
 | [MCP comparison candidates](comparison-candidates.md) | Future MCP/browser cohorts; not benchmark task sources or measured adapters |
+| [Disclosure experiment plan](experiments/2026-10-22-disclosure-plan.md) | Preregistered 2×2 observation/action-guidance experiment and budget |
+| [Disclosure A/B findings](results/2026-10-22-disclosure-ab.md) | 72 repeated runs, ref/expect mechanism probes, and small-model selector decision |
+| [Target-view A/B plan](experiments/2026-10-22-target-view-plan.md) | Representation-only experiment, fixed refs/content, personal/UI/media coverage |
+| [Target-view A/B findings](results/2026-10-22-target-view-ab.md) | 60 repeated runs, grouping overhead, media-identity/cropping gaps, and adoption decision |
+| [Sonnet/Opus follow-up](results/2026-10-22-sonnet-opus-target-view.md) | 16 bounded parallel runs, model-sensitive formatting effects, and confirmed screenshot-ref failure |
+| [Tool usage inventory](results/2026-10-22-tool-usage.md) | Offline counts from 196 runs, actual exposure, error categories, and default-surface candidates |
 | [Results index](results/README.md) | Dated observations and evidence references |
 
 The task catalog and execution configs are executable inputs. Guides describe
