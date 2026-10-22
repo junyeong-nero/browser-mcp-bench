@@ -1,0 +1,58 @@
+name: Hypothesis
+description: A testable claim about Kitsune behavior or cost, with adopt/reject criteria written before measurement.
+title: "[Hypothesis] "
+labels: ["hypothesis"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Write the criteria **before** running the measurement. Do not edit them after seeing results;
+        add a comment instead.
+
+        Lifecycle: `hypothesis` → close with one of `validated`, `rejected`, or `inconclusive`
+        and a verdict comment. The linked Kitsune issue follows the verdict (default, revert, or re-measure).
+  - type: textarea
+    id: observation
+    attributes:
+      label: Observation
+      description: What was measured. Include the Kitsune revision, client/model, task suite, and one-line numbers.
+      placeholder: |
+        v0.3.0 `99a90d2`, Claude Code 2.1.303 / haiku-5-5 medium, 24 personal tasks, one attempt.
+        Invalid `expect` errors: bare 2, full-description 12.
+    validations:
+      required: true
+  - type: textarea
+    id: hypothesis
+    attributes:
+      label: Hypothesis
+      description: One sentence. "If we change X, then metric Y moves in direction Z."
+    validations:
+      required: true
+  - type: textarea
+    id: adopt
+    attributes:
+      label: Adopt if
+      description: Measurable conditions that make this change the default.
+      placeholder: "Invalid `expect` errors drop ≥50% on the same suite; success rate does not drop."
+    validations:
+      required: true
+  - type: textarea
+    id: reject
+    attributes:
+      label: Reject if
+      description: Measurable conditions that mean revert or remove. Include guardrails (success rate, input tokens, elapsed).
+      placeholder: "Success rate drops, or same-success input tokens grow >10%."
+    validations:
+      required: true
+  - type: textarea
+    id: plan
+    attributes:
+      label: Measurement plan
+      description: Arms (baseline vs candidate revision or toggle), tasks, trials/order, and what is out of scope.
+    validations:
+      required: true
+  - type: input
+    id: kitsune
+    attributes:
+      label: Kitsune implementation issue
+      description: Link once opened (e.g. junyeong-nero/kitsune#123). Leave blank if not yet opened.
