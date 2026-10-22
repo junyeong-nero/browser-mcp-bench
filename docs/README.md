@@ -53,6 +53,7 @@ pair is not a general success rate, tool ranking or security certification.
 | [Sonnet/Opus follow-up](results/2026-10-22-sonnet-opus-target-view.md) | 16 bounded parallel runs, model-sensitive formatting effects, and confirmed screenshot-ref failure |
 | [Tool usage inventory](results/2026-10-22-tool-usage.md) | Offline counts from 196 runs, actual exposure, error categories, and default-surface candidates |
 | [Results index](results/README.md) | Dated observations and evidence references |
+| [Results by Kitsune version](results/kitsune-versions.md) | The same reports grouped by the Kitsune revision they ran on |
 
 The task catalog and execution configs are executable inputs. Guides describe
 their protocol. Dated reports describe what was actually run, not everything

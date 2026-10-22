@@ -5,6 +5,8 @@
 Reports are dated records of actual executions. **Changing the configured model
 does not change the model used in an older report.** Different tasks, models,
 tool policies and instrumentation are not a single comparable leaderboard.
+For the same reports grouped by Kitsune revision, see
+[results by Kitsune version](kitsune-versions.md).
 
 | Date | Report | Model | Scope and outcome |
 | --- | --- | --- | --- |
