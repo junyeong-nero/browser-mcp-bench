@@ -125,6 +125,22 @@ def harness_environment(harness: str, path: str, server: Server | None = None,
     return codex_environment(path, codex_home, extra)
 
 
+def with_claude_overrides(spec: dict, model: str | None = None,
+                          max_budget_usd_per_run: float | None = None) -> dict:
+    """Copy of spec with CLI overrides of its claude_code model/per-run cap; the config file stays unchanged."""
+    if model is None and max_budget_usd_per_run is None:
+        return spec
+    pins = dict(spec.get("claude_code") or {})
+    if model is not None:
+        pins["model"] = text(model, "model")
+    if max_budget_usd_per_run is not None:
+        if isinstance(max_budget_usd_per_run, bool) or not isinstance(max_budget_usd_per_run, (int, float)) \
+                or max_budget_usd_per_run <= 0:
+            raise ValueError("max_budget_usd_per_run must be a positive amount.")
+        pins["max_budget_usd_per_run"] = float(max_budget_usd_per_run)
+    return {**spec, "claude_code": pins}
+
+
 def claude_budget(spec: dict, harness: str) -> float | None:
     """Per-run --max-budget-usd for API-key runs; subscription runs are not dollar-capped."""
     if harness not in API_HARNESSES:

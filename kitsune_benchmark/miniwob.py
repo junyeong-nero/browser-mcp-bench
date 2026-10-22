@@ -20,6 +20,7 @@ import threading
 import time
 from urllib.parse import parse_qs, urlsplit
 
+from .adapter import with_claude_overrides
 from .smoke import ROOT, run_pair
 from .specs import Task
 
@@ -246,8 +247,9 @@ class BenchmarkServer:
 
 def run_benchmark(*, execute: bool = False, fetch: bool = False,
                   kitsune_project: str | None = None, executable: str = "codex",
-                  harness: str = "codex") -> dict:
-    spec = config()
+                  harness: str = "codex", claude_model: str | None = None,
+                  max_budget_usd_per_run: float | None = None) -> dict:
+    spec = with_claude_overrides(config(), claude_model, max_budget_usd_per_run)
     source = fetch_source(spec) if fetch else ROOT / spec["source_directory"]
     if not execute:
         return {"mode": "benchmark_plan_only", "model_invoked": False, "config": spec,

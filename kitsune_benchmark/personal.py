@@ -16,7 +16,7 @@ import sys
 import threading
 from urllib.parse import parse_qs, urlsplit
 
-from .adapter import claude_budget, harness_pins, write_json
+from .adapter import claude_budget, harness_pins, with_claude_overrides, write_json
 from .miniwob import UI_TOOLS
 from .personal_fixtures import FIXTURE_CLASSES
 from .smoke import ROOT, TARGETS, run_pair, source_revision
@@ -468,11 +468,12 @@ def aggregate_results(pairs: list[dict]) -> dict:
 def run_personal(*, execute: bool = False, task_ids: list[str] | None = None, variant: int = 0,
                  kitsune_project: str | None = None, executable: str = "codex",
                  harness: str = "codex", budget_usd: float | None = None,
-                 kitsune_preset: str | None = None, targets: tuple[str, ...] = TARGETS) -> dict:
+                 kitsune_preset: str | None = None, targets: tuple[str, ...] = TARGETS,
+                 claude_model: str | None = None, max_budget_usd_per_run: float | None = None) -> dict:
     if type(variant) is not int or variant not in range(3):
         raise ValueError("Variant must be 0, 1 or 2.")
     tasks = selected_tasks(task_ids)
-    spec = config()
+    spec = with_claude_overrides(config(), claude_model, max_budget_usd_per_run)
     model, _ = harness_pins(spec, harness)
     per_run = claude_budget(spec, harness)
     targets = tuple(targets)

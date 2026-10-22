@@ -101,6 +101,20 @@ paragraph of each MCP tool description; without `--bare` it sends them in full.
 `--harness claude-api-full` uses the same `.env` key and caps without `--bare`,
 so both client behaviours can be measured. Report them as separate cohorts.
 
+**Model and per-run cap overrides.** `--claude-model ID` replaces the config's
+`claude_code.model` and `--max-budget-usd-per-run N` its per-run cap for one
+command; the config files stay unchanged and each run's manifest records the
+values actually used. `doctor --claude-model ID` validates that model for free.
+`scripts/run-full-suite.py` runs every graded track (personal 24 × 3 variants,
+gallery 21 × 3 variants × 2 layouts, MiniWoB) under one total `--budget-usd`, and
+writes `suite-manifest.json` with the Kitsune revision and `git describe` so the
+result can be filed under [its Kitsune version](results/kitsune-versions.md).
+
+```sh
+uv run --locked python scripts/run-full-suite.py --model claude-opus-5-5 --budget-usd 100 \
+  --max-budget-usd-per-run 5 --kitsune-project artifacts/vendor/kitsune-pinned --out artifacts/opus-full
+```
+
 **A/B arms and a pinned Kitsune checkout.**
 
 ```sh

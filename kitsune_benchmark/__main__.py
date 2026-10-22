@@ -6,7 +6,7 @@ import argparse
 import json
 import subprocess
 
-from .adapter import HARNESSES, plan, run
+from .adapter import HARNESSES, plan, run, with_claude_overrides
 from . import claude_harness
 from .doctor import diagnose
 from .specs import load_server, load_task
@@ -83,14 +83,23 @@ def main(argv: list[str] | None = None) -> int:
                                 "claude-api (Claude Code --bare, ANTHROPIC_API_KEY from .env; billed per token) "
                                 "or claude-api-full (same key, no --bare: full tool descriptions)")
         child.add_argument("--claude", default="claude", help="Claude Code executable name or path")
+        child.add_argument("--claude-model", help="Claude harnesses only: override the config's claude_code.model "
+                           "(e.g. claude-opus-5-5); the override is recorded in each run's manifest")
+        child.add_argument("--max-budget-usd-per-run", type=float,
+                           help="claude-api harnesses only: override claude_code.max_budget_usd_per_run")
+    doctor.add_argument("--claude-model", help="Model ID to validate with the claude-api harnesses")
     args = parser.parse_args(argv)
     claude = getattr(args, "harness", "codex").startswith("claude")
     executable = getattr(args, "claude", None) if claude else args.codex
+    overrides = {"claude_model": getattr(args, "claude_model", None),
+                 "max_budget_usd_per_run": getattr(args, "max_budget_usd_per_run", None)}
+    if args.command != "doctor" and not claude and any(value is not None for value in overrides.values()):
+        parser.error("--claude-model/--max-budget-usd-per-run need a Claude harness (--harness claude*).")
     try:
         if args.command == "doctor":
             if claude:
                 api = args.harness in ("claude-api", "claude-api-full")
-                model = personal_config()["claude_code"]["model"] if api else None
+                model = (args.claude_model or personal_config()["claude_code"]["model"]) if api else None
                 report = claude_harness.diagnose(args.claude, api=api, model=model)
             else:
                 report = diagnose(args.codex, args.codex_home)
@@ -107,7 +116,8 @@ def main(argv: list[str] | None = None) -> int:
             result = run_personal(execute=args.execute, task_ids=runnable_ids() if args.all else args.task_ids, variant=args.variant,
                                   executable=executable, kitsune_project=args.kitsune_project,
                                   harness=args.harness, budget_usd=args.budget_usd,
-                                  kitsune_preset=args.kitsune_preset, targets=tuple(args.targets.split(",")))
+                                  kitsune_preset=args.kitsune_preset, targets=tuple(args.targets.split(",")),
+                                  **overrides)
             print(json.dumps(result, indent=2, ensure_ascii=False))
             if not args.execute:
                 return 0
@@ -117,7 +127,7 @@ def main(argv: list[str] | None = None) -> int:
             result = run_gallery(execute=args.execute, task_ids=args.task_ids, category=args.category, variant=args.variant,
                                  layout=args.layout, kitsune_project=args.kitsune_project, executable=executable,
                                  harness=args.harness, budget_usd=args.budget_usd, kitsune_preset=args.kitsune_preset,
-                                 targets=tuple(args.targets.split(",")))
+                                 targets=tuple(args.targets.split(",")), **overrides)
             print(json.dumps(result, indent=2, ensure_ascii=False))
             if not args.execute:
                 return 0
@@ -125,7 +135,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "benchmark":
             result = run_benchmark(execute=args.execute, fetch=args.fetch,
                                    executable=executable, kitsune_project=args.kitsune_project,
-                                   harness=args.harness)
+                                   harness=args.harness, **overrides)
             print(json.dumps(result, indent=2, ensure_ascii=False))
             if not args.execute:
                 return 0
@@ -133,10 +143,11 @@ def main(argv: list[str] | None = None) -> int:
             return 0 if len(results) == 2 and all(
                 item.get("benchmark_evaluation", {}).get("scorable") for item in results.values()) else 3
         if args.command == "smoke":
-            spec = None
+            spec = with_claude_overrides(smoke_experiment(), overrides["claude_model"],
+                                         overrides["max_budget_usd_per_run"])
             if args.task_file:
                 load_task(args.task_file)  # validate before any process starts
-                spec = {**smoke_experiment(), "task": str(Path(args.task_file).resolve())}
+                spec = {**spec, "task": str(Path(args.task_file).resolve())}
             targets = tuple(args.targets.split(","))
             result = run_pair(execute=args.execute, kitsune_project=args.kitsune_project,
                               executable=executable, timeout=args.timeout, harness=args.harness,
