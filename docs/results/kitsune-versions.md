@@ -12,7 +12,7 @@ when model, harness and tasks match.
 
 | Kitsune | Revisions | Reports |
 | --- | --- | --- |
-| **v0.3.0** | `99a90d2` (tag); `d616c50` = v0.3.0 + docs/agents only (`server.py` comment change) | Opus full suite (2026-10-23, running; `taskset-v1`), 2026-10-22 rerun, disclosure, target view, Sonnet/Opus, integrated startup, tool usage |
+| **v0.3.0** | `99a90d2` (tag); `d616c50` = v0.3.0 + docs/agents only (`server.py` comment change) | Opus full suite (2026-10-23; `taskset-v1`), 2026-10-22 rerun, disclosure, target view, Sonnet/Opus, integrated startup, tool usage |
 | v0.2.1 → v0.3.0 (main) | `9d36c57`, `1045a5e`, `cf24851`, `56bd5d9`, `753406b` | 2026-10-21 personal 24, token efficiency, gallery |
 | v0.1.0 → v0.2.0 (main) | `967dfdf`, `68f7e97` | 2026-10-18 smoke and MiniWoB, 2026-10-19 personal pilots |
 
@@ -70,7 +70,7 @@ still goes through a `hypothesis` issue.
 
 | Date | Report | Model / harness | Kitsune revision | Notes |
 | --- | --- | --- | --- | --- |
-| 2026-10-23 | Opus full suite (in progress; artifacts in `artifacts/opus-full/`) | `claude-opus-5-5`, Claude Code API bare | `d616c50` (`v0.3.0-4`) | Personal 24 × 3 variants, gallery 21 × 3 variants × 2 layouts, MiniWoB; $100 cap |
+| 2026-10-23 | [Opus full suite](2026-10-23-opus-full-v0.3.0.md) | `claude-opus-5-5`, Claude Code API bare | `d616c50` (`v0.3.0-4`) | `taskset-v1`; personal 67/72 vs 68/72, gallery crowded 63/63 vs 60/63, isolated 63/63 vs 57/63 (Playwright vs Kitsune) |
 | 2026-10-22 | [Tool usage inventory](2026-10-22-tool-usage.md) | Offline | v0.3.0 | 196 existing v0.3.0 runs |
 | 2026-10-22 | [Sonnet / Opus targeted follow-up](2026-10-22-sonnet-opus-target-view.md) | Sonnet 5.5 / Opus 5.5, API bare | `99a90d2` | 16 runs, lean |
 | 2026-10-22 | [Target/action view A/B](2026-10-22-target-view-ab.md) | Haiku 5.5, API bare | `99a90d2` | 60 runs |

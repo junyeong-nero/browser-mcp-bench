@@ -7,10 +7,15 @@ from contextlib import redirect_stdout
 from unittest.mock import patch
 
 from kitsune_benchmark.__main__ import main
-from kitsune_benchmark.smoke import ROOT, WS_SETTING, copy_extension, experiment, private_ports, run_pair
+from kitsune_benchmark.smoke import ROOT, WS_SETTING, benchmark_source, copy_extension, experiment, private_ports, run_pair
 
 
 class SmokeTests(unittest.TestCase):
+    def test_benchmark_source_names_the_taskset_tag(self):
+        source = benchmark_source()
+        self.assertRegex(source["revision"], r"^[0-9a-f]{40}$")
+        self.assertTrue(source["taskset"].startswith("taskset-v"))
+
     def test_exact_requested_model_and_reasoning_pin(self):
         spec = experiment()
         self.assertEqual(spec["model"], "gpt-6-luna")

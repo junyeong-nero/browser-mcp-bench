@@ -10,6 +10,7 @@ For the same reports grouped by Kitsune revision, see
 
 | Date | Report | Model | Scope and outcome |
 | --- | --- | --- | --- |
+| 2026-10-23 | [Opus full suite, Kitsune v0.3.0](2026-10-23-opus-full-v0.3.0.md) | `claude-opus-5-5`, medium (Claude Code API, bare) | `taskset-v1`, 398 scorable runs, $27.98: personal 67/72 PW vs 68/72 Kitsune; gallery crowded 63/63 vs 60/63, isolated 63/63 vs 57/63; Kitsune cost ×0.67 on crowded; snapshot drops `img`, lean lacks keypress; two grader defects |
 | 2026-10-22 | [Tool usage inventory](2026-10-22-tool-usage.md) | Offline, 196 existing Kitsune runs | 2,084 agent calls; exposure-aware counts and error categories; status/page-info candidates for default-surface ablation, not API removal |
 | 2026-10-22 | [Sonnet / Opus targeted follow-up](2026-10-22-sonnet-opus-target-view.md) | Sonnet 5.5 / Opus 5.5, medium (Claude Code API, bare) | 16 scorable runs in 4m37s; catalog requests −13.8% / −11.8%, elapsed −8.5% / −17.3%, but cost +15.1% / +13.5%; no-model probe confirms video screenshot(ref) failure |
 | 2026-10-22 | [Target/action view A/B](2026-10-22-target-view-ab.md) | `claude-haiku-5-5`, medium (Claude Code API, bare) | 60 scorable runs; native/catalog both 28/30 strict, requests −2.2% but input +6.0%, elapsed +2.9%, cost +10.0%; chart assets absent from source snapshot, video crop divergence; no global-default adoption |

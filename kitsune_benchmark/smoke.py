@@ -93,6 +93,13 @@ def source_revision(path: Path) -> dict:
             "dirty": bool(dirty.stdout) if dirty.returncode == 0 else None}
 
 
+def benchmark_source() -> dict:
+    """This repository's revision and nearest frozen taskset tag (e.g. taskset-v1-3-gabc1234-dirty)."""
+    taskset = subprocess.run(["git", "-C", str(ROOT), "describe", "--tags", "--match", "taskset-*", "--dirty"],
+                             capture_output=True, text=True, timeout=10)
+    return {**source_revision(ROOT), "taskset": taskset.stdout.strip() if taskset.returncode == 0 else None}
+
+
 def experiment() -> dict:
     spec = json.loads((ROOT / "configs/experiments/smoke.json").read_text())
     if spec["codex_version"] != PINNED_CODEX_VERSION or spec["reasoning_effort"] != "medium":
@@ -178,7 +185,8 @@ def run_pair(*, execute: bool = False, kitsune_project: str | None = None,
         "max_budget_usd_per_run": max_budget_usd, "kitsune_tool_preset": kitsune_preset,
         "targets": list(targets),
         "enabled_tools": enabled_tools, "browser_binary": str(firefox), "headless": True,
-        "kitsune_source": source_revision(project), "extension_patch": patch_info,
+        "kitsune_source": source_revision(project), "benchmark_source": benchmark_source(),
+        "extension_patch": patch_info,
         "http_port": http_port, "ws_port": ws_port,
         "limitations": ["One fixed-order smoke pair, not benchmark evidence.",
                         "Viewport equivalence not asserted for web-ext Firefox.",

@@ -25,13 +25,14 @@ def commands() -> list[tuple[str, list[str]]]:
     return items
 
 
-def kitsune_version(project: str) -> dict:
-    """Revision and tag-relative name of the Kitsune checkout, for grouping results by version."""
+def git_identity(project: str | Path, match: str | None = None) -> dict:
+    """Revision and tag-relative name of a checkout, for grouping results by version."""
     def git(*argv: str) -> str | None:
-        done = subprocess.run(["git", "-C", project, *argv], capture_output=True, text=True)
+        done = subprocess.run(["git", "-C", str(project), *argv], capture_output=True, text=True)
         return done.stdout.strip() if done.returncode == 0 else None
-    return {"revision": git("rev-parse", "HEAD"), "describe": git("describe", "--tags", "--dirty"),
-            "tag": git("describe", "--tags", "--abbrev=0")}
+    pattern = ("--match", match) if match else ()
+    return {"revision": git("rev-parse", "HEAD"), "describe": git("describe", "--tags", *pattern, "--dirty"),
+            "tag": git("describe", "--tags", *pattern, "--abbrev=0")}
 
 
 def main() -> int:
@@ -50,7 +51,8 @@ def main() -> int:
     manifest = {"model": args.model, "harness": args.harness, "budget_usd": args.budget_usd,
                 "max_budget_usd_per_run": args.max_budget_usd_per_run,
                 "kitsune_project": str(Path(args.kitsune_project).resolve()),
-                "kitsune": kitsune_version(args.kitsune_project),
+                "kitsune": git_identity(args.kitsune_project),
+                "taskset": git_identity(Path(__file__).resolve().parent.parent, "taskset-*"),
                 "started": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "commands": [name for name, _ in commands()]}
     (out / "suite-manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
     log = out / "suite-log.jsonl"
