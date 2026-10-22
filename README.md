@@ -90,6 +90,8 @@ PERSONAL_BROWSER_TEST=1 PERSONAL_KITSUNE_TEST=1 \
 | `kitsune_benchmark/` | Codex execution/audit, paired lifecycle, fixtures, evaluators and resource collection |
 | `artifacts/` | Private, gitignored raw evidence and browser/vendor resources |
 | [Documentation index](docs/README.md) | Guide map, track status and source-of-truth boundaries |
+| [Workflow](https://github.com/junyeong-nero/kitsune/blob/main/docs/workflow.md) | Kitsune-owned: bugs/decisions are Kitsune issues, effect claims are `hypothesis` issues here |
+| [Results by Kitsune version](docs/results/kitsune-versions.md) | Reports per Kitsune revision, frozen `taskset-v1` and upgrade rules |
 | [Personal protocol](docs/personal-browsing.md) | Catalog, session/reset setup, state-based grading and provenance |
 | [Codex harness](docs/codex-harness.md) | Authentication, tool policy, generic runs and process cleanup |
 | [Resource methodology](docs/resources.md) | CPU/RSS scope, attribution and sampling caveats |

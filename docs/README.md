@@ -17,6 +17,11 @@ already-open tabs and a pre-established test session.
    observation/schema opportunities, diagnostic logs and no-quota analysis commands.
 5. [All result reports](results/README.md): dated evidence with the model and
    scope of each experiment. Historical reports are not relabeled to today's model.
+6. [Workflow](https://github.com/junyeong-nero/kitsune/blob/main/docs/workflow.md) (in the Kitsune repository, the single source): bugs and
+   decisions go to Kitsune issues; effect claims become `hypothesis` issues here,
+   measured against criteria fixed before the run.
+7. [Results by Kitsune version](results/kitsune-versions.md): the frozen
+   `taskset-v1` and how the taskset is upgraded with the next Kitsune release.
 
 ## Tracks and current evidence
 
@@ -40,6 +45,7 @@ pair is not a general success rate, tool ranking or security certification.
 | [Component gallery](gallery.md) | Modern components, multimodal puzzles and a hand-off judgement task on one local page |
 | [Personal-state track](personal-state.md) | Specification only: tasks that need a personal profile's history, bookmarks or logins |
 | [Task catalog](../tasks/personal/catalog.json) | Per-task requests, initial state, success/safety criteria, implementation status |
+| [Workflow](https://github.com/junyeong-nero/kitsune/blob/main/docs/workflow.md) | Issue routing (bug / decision / hypothesis), hypothesis lifecycle, labels and agents; owned by the Kitsune repository |
 | [Personal execution config](../configs/benchmarks/personal.json) | Model/pins, default pilot selection and wall-clock budget |
 | [Codex integration](codex-harness.md) | Authentication, isolation, native tool policy, process lifecycle and trace audit |
 | [Local resource methodology](resources.md) | CPU/RSS sampling scope, attribution and interpretation |

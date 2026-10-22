@@ -43,6 +43,12 @@ Rules:
   `--max-budget-usd-per-run`); report them, and compare versions only at the same
   model.
 - Each report names its taskset tag next to the Kitsune revision.
+- A full-suite run on one Kitsune revision is an **observation**. Under the
+  [workflow](https://github.com/junyeong-nero/kitsune/blob/main/docs/workflow.md) it can motivate a `hypothesis` issue but is not that
+  hypothesis's baseline: baseline and candidate are re-run together on the same
+  taskset tag, model, attempts and counterbalanced order. A reproducible Kitsune
+  failure (same task failing on every variant) is filed as a Kitsune `bug`, and a
+  grader or fixture defect as a taskset change here.
 
 ### Upgrading with the next Kitsune release
 
@@ -54,6 +60,9 @@ together with the next Kitsune release:
 2. Freeze `taskset-v2` (harder tasks, repeated trials, counterbalanced order).
 3. Run both the previous release and the new one on `taskset-v2`, so the new
    taskset has its own baseline.
+
+Steps 1 and 3 are observations; a claim that the release is better on some metric
+still goes through a `hypothesis` issue.
 
 ## v0.3.0
 
