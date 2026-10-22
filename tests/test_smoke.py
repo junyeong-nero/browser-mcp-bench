@@ -7,10 +7,21 @@ from contextlib import redirect_stdout
 from unittest.mock import patch
 
 from kitsune_benchmark.__main__ import main
-from kitsune_benchmark.smoke import ROOT, WS_SETTING, benchmark_source, copy_extension, experiment, private_ports, run_pair
+from kitsune_benchmark.smoke import ROOT, WS_SETTING, benchmark_source, copy_extension, tool_surface, experiment, private_ports, run_pair
 
 
 class SmokeTests(unittest.TestCase):
+    def test_tool_surface_reports_unpublished_allowlisted_tools(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "kitsune-native-metadata.json"
+            path.write_text(json.dumps({"enabled_tools": [], "tools_pages": [
+                {"tools": [{"name": "browser_click"}, {"name": "browser_snapshot"}]}, {"tools": [{"name": "browser_js"}]}]}))
+            surface = tool_surface(path, ("browser_snapshot", "browser_keypress", "browser_click"))
+            self.assertEqual(surface["missing"], ["browser_keypress"])
+            self.assertEqual(surface["exposed"], ["browser_click", "browser_snapshot"])
+            self.assertEqual(surface["published_count"], 3)
+            self.assertIsNone(tool_surface(Path(tmp) / "absent.json", ("browser_click",)))
+
     def test_benchmark_source_names_the_taskset_tag(self):
         source = benchmark_source()
         self.assertRegex(source["revision"], r"^[0-9a-f]{40}$")

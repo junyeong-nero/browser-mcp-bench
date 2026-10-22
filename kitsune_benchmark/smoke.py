@@ -15,6 +15,7 @@ import secrets
 import shutil
 import socket
 import subprocess
+import sys
 import tempfile
 import time
 import urllib.error
@@ -91,6 +92,20 @@ def source_revision(path: Path) -> dict:
                            capture_output=True, text=True, timeout=10)
     return {"revision": result.stdout.strip() if result.returncode == 0 else None,
             "dirty": bool(dirty.stdout) if dirty.returncode == 0 else None}
+
+
+def tool_surface(metadata_path: Path, enabled_tools: tuple[str, ...]) -> dict | None:
+    """Allowlisted tools the native server actually published (#1); None without session metadata."""
+    try:
+        metadata = json.loads(metadata_path.read_text())
+    except (OSError, ValueError):
+        return None
+    published = sorted({tool["name"] for page in metadata.get("tools_pages", []) if isinstance(page, dict)
+                        for tool in page.get("tools", []) if isinstance(tool, dict) and "name" in tool})
+    enabled = sorted(enabled_tools)
+    return {"enabled": enabled, "published_count": len(published),
+            "exposed": [name for name in enabled if name in published],
+            "missing": [name for name in enabled if name not in published]}
 
 
 def benchmark_source() -> dict:
@@ -245,6 +260,13 @@ def run_pair(*, execute: bool = False, kitsune_project: str | None = None,
                     evaluation = evaluate(target, result)
                     write_json(Path(result["run_dir"]) / "evaluation.json", evaluation)
                     result["benchmark_evaluation"] = evaluation
+                if server.enabled_tools:
+                    surface = tool_surface(pair_dir / (target + "-native-metadata.json"), server.enabled_tools)
+                    if surface is not None:
+                        result["tool_surface"] = surface
+                        if surface["missing"]:
+                            print(f"warning: {target} did not publish allowlisted tools: "
+                                  + ", ".join(surface["missing"]), file=sys.stderr)
                 results[target] = result
                 write_json(pair_dir / (target + "-summary.json"), result)
                 if (result["execution_status"] != "completed_unscored"

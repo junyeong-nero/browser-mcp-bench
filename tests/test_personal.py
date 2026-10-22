@@ -226,6 +226,14 @@ class PersonalTests(unittest.TestCase):
         self.assertEqual(p["instrumented_elapsed_sec_successful_runs"], 10)
         self.assertIsNone(result["kitsune"]["scorable_success_rate"])
 
+    def test_aggregation_counts_unpublished_allowlisted_tools(self):
+        lean = {"benchmark_evaluation": {"scorable": True, "task_success": False},
+                "tool_surface": {"missing": ["browser_keypress", "browser_drag"]}}
+        full = {"benchmark_evaluation": {"scorable": True, "task_success": True}, "tool_surface": {"missing": []}}
+        k = aggregate_results([{"results": {"kitsune": r}} for r in [lean, full, {}]])["kitsune"]
+        self.assertEqual((k["runs_with_tool_surface"], k["runs_missing_allowlisted_tools"]), (2, 1))
+        self.assertEqual(k["missing_allowlisted_tools"], ["browser_drag", "browser_keypress"])
+
 
 class SessionTests(unittest.TestCase):
     def test_relay_entrypoint_transports_real_jsonrpc_without_browser_or_model(self):
