@@ -12,11 +12,48 @@ when model, harness and tasks match.
 
 | Kitsune | Revisions | Reports |
 | --- | --- | --- |
-| **v0.3.0** | `99a90d2` (tag); `d616c50` = v0.3.0 + docs/agents only (`server.py` comment change) | Opus full suite (2026-10-23, running), 2026-10-22 rerun, disclosure, target view, Sonnet/Opus, integrated startup, tool usage |
+| **v0.3.0** | `99a90d2` (tag); `d616c50` = v0.3.0 + docs/agents only (`server.py` comment change) | Opus full suite (2026-10-23, running; `taskset-v1`), 2026-10-22 rerun, disclosure, target view, Sonnet/Opus, integrated startup, tool usage |
 | v0.2.1 → v0.3.0 (main) | `9d36c57`, `1045a5e`, `cf24851`, `56bd5d9`, `753406b` | 2026-10-21 personal 24, token efficiency, gallery |
 | v0.1.0 → v0.2.0 (main) | `967dfdf`, `68f7e97` | 2026-10-18 smoke and MiniWoB, 2026-10-19 personal pilots |
 
 No report ran on exactly the v0.1.0, v0.2.0 or v0.2.1 tags.
+
+## Frozen taskset
+
+Version comparisons only mean something on an unchanged taskset. The current
+one is frozen as git tag **`taskset-v1`** of this repository (`f1ff9fa`).
+Every v0.3.0 report from the 2026-10-23 Opus suite on uses it; earlier reports
+predate the tag and ran on earlier task/grader code.
+
+Frozen in `taskset-v1`:
+
+- Personal: `tasks/personal/catalog.json`, `kitsune_benchmark/personal_fixtures.py`,
+  `personal.py` and `personal_session.py` (fixtures, variants and graders).
+- Gallery: `kitsune_benchmark/gallery.py`, `gallery_static/`, `gallery_media.py`.
+- MiniWoB: `configs/benchmarks/miniwob.json` (upstream revision, task, seed).
+- Harness: Claude Code `2.1.303`, Playwright MCP `0.0.83`, UI tool allowlists,
+  per-run timeouts in `configs/benchmarks/`.
+
+Rules:
+
+- Do not change frozen files on `main` for a v1 run. A grader bug fix becomes
+  `taskset-v1.1`; rerun the Kitsune versions being compared on it, and never
+  compare scores across taskset versions.
+- Model, effort and per-run cap may vary per run (`--claude-model`,
+  `--max-budget-usd-per-run`); report them, and compare versions only at the same
+  model.
+- Each report names its taskset tag next to the Kitsune revision.
+
+### Upgrading with the next Kitsune release
+
+v1 has a ceiling: Haiku already reaches 23/24 personal and 21/21 isolated gallery,
+and there is one attempt per task in a fixed order. Introduce `taskset-v2`
+together with the next Kitsune release:
+
+1. Run the new release on `taskset-v1` first, for continuity with this table.
+2. Freeze `taskset-v2` (harder tasks, repeated trials, counterbalanced order).
+3. Run both the previous release and the new one on `taskset-v2`, so the new
+   taskset has its own baseline.
 
 ## v0.3.0
 
