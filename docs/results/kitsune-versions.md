@@ -20,12 +20,21 @@ No report ran on exactly the v0.1.0, v0.2.0 or v0.2.1 tags.
 
 ## Frozen taskset
 
-Version comparisons only mean something on an unchanged taskset. The current
-one is frozen as git tag **`taskset-v1`** of this repository (`f1ff9fa`).
-Every v0.3.0 report from the 2026-10-23 Opus suite on uses it; earlier reports
-predate the tag and ran on earlier task/grader code.
+Version comparisons only mean something on an unchanged taskset. Tasksets are
+git tags of this repository:
 
-Frozen in `taskset-v1`:
+| Tag | Change | Reports |
+| --- | --- | --- |
+| `taskset-v1` (`f1ff9fa`) | First freeze | 2026-10-23 Opus full suite |
+| **`taskset-v1.1`** (current) | Requests of `pb-research-02` (both evidence links) and `pb-account-03` (overlapping titles only) now state what their graders check. Graders, fixtures and gallery unchanged | None yet |
+
+Earlier reports predate the tags and ran on earlier task/grader code. Scores on
+v1 and v1.1 are not compared directly: the two personal tasks changed their
+requests, so their recorded v1 notes cannot be re-graded as v1.1 answers.
+Pair manifests record `benchmark_source.taskset` (e.g. `taskset-v1.1-2-gabc1234`;
+a `-dirty` suffix means uncommitted changes).
+
+Frozen in each taskset tag:
 
 - Personal: `tasks/personal/catalog.json`, `kitsune_benchmark/personal_fixtures.py`,
   `personal.py` and `personal_session.py` (fixtures, variants and graders).

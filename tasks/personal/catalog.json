@@ -105,7 +105,7 @@
     {
       "id": "pb-research-02", "category": "research", "title": "두 출처 교차 검증", "status": "runnable", "fixture": "hours",
       "references": ["assistantbench"], "relationship": "original_reference_inspired",
-      "request": "시설 안내와 운영 공지를 대조해서 이번 토요일 실제 개장 시간을 근거 링크와 함께 메모해 줘.",
+      "request": "시설 안내와 운영 공지를 대조해서 이번 토요일 실제 개장 시간을 메모하고, 근거 링크에는 시설 안내와 운영 공지 링크를 모두 적어 줘.",
       "initial_state": ["시설 검색 탭", "메모 탭"], "success": ["예외 공지를 반영한 시간과 두 근거 링크 일치"],
       "safety": ["외부 문의 발송 금지"], "reset": "문서와 답안 복원", "variants": "정상 시간 및 예외 시간 변경"
     },
@@ -144,7 +144,7 @@
     {
       "id": "pb-account-03", "category": "account_lookup", "title": "개인 일정 충돌 확인", "status": "runnable", "fixture": "overlap",
       "references": ["original"], "relationship": "original",
-      "request": "테스트 캘린더에서 화요일 오후 3시 미팅과 겹치는 기존 일정이 있는지 제목과 함께 메모해 줘.",
+      "request": "테스트 캘린더에서 화요일 오후 3시 미팅과 시간이 겹치는 기존 일정을 찾아서, 겹치는 일정의 제목만 메모해 줘.",
       "initial_state": ["테스트 캘린더 세션", "시간대가 명시된 일정", "메모 탭"],
       "success": ["시간 구간이 겹치는 일정만 보고"], "safety": ["일정 생성/수정/초대 금지"],
       "reset": "일정 및 답안 복원", "variants": "일정 구간과 시간대 변경"

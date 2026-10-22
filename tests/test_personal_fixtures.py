@@ -197,6 +197,12 @@ class NewFixtureTests(unittest.TestCase):
                             destination = trial.impl.mutate(step[1], step[2])
                             self.assertIn(destination, trial.paths, step)
 
+    def test_requests_state_the_grader_contract(self):
+        # taskset-v1.1: the request must ask for what Hours/Overlap grade (two links; titles only).
+        requests = {t["id"]: t["request"] for t in catalog()["tasks"]}
+        self.assertIn("시설 안내와 운영 공지 링크를 모두", requests["pb-research-02"])
+        self.assertIn("제목만", requests["pb-account-03"])
+
     def test_normalizers(self):
         self.assertTrue(time_in("2027-06-18 15:00", "15:00"))
         self.assertTrue(time_in("2027-06-18 (금) 15:00", "15:00"))
