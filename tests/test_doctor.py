@@ -5,8 +5,8 @@ import unittest
 from contextlib import redirect_stdout
 from unittest.mock import patch
 
-from browser_mcp_bench.__main__ import main
-from browser_mcp_bench.doctor import diagnose
+from kitsune_benchmark.__main__ import main
+from kitsune_benchmark.doctor import diagnose
 
 
 class DoctorTests(unittest.TestCase):
@@ -99,7 +99,7 @@ class DoctorTests(unittest.TestCase):
     def test_cli_json_and_exit_codes(self):
         for ready, expected in ((True, 0), (False, 2)):
             report = {"prerequisites_ok": ready, "checks": []}
-            with patch("browser_mcp_bench.__main__.diagnose", return_value=report) as mocked:
+            with patch("kitsune_benchmark.__main__.diagnose", return_value=report) as mocked:
                 out = io.StringIO()
                 with redirect_stdout(out):
                     code = main(["doctor", "--codex", "/custom/codex", "--codex-home", "/home", "--json"])

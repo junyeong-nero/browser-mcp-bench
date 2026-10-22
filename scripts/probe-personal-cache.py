@@ -22,9 +22,9 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "tests"))
 from test_personal import isolated_kitsune
-from browser_mcp_bench.adapter import write_json
-from browser_mcp_bench.personal import PersonalServer, selected_tasks
-from browser_mcp_bench.personal_session import NativeSession
+from kitsune_benchmark.adapter import write_json
+from kitsune_benchmark.personal import PersonalServer, selected_tasks
+from kitsune_benchmark.personal_session import NativeSession
 
 
 def main() -> int:

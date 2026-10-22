@@ -11,10 +11,10 @@ from pathlib import Path
 import tempfile
 from unittest.mock import patch
 
-from browser_mcp_bench.personal import PILOT_FIXTURES, PersonalServer, catalog
-from browser_mcp_bench.personal_session import NativeSession
-from browser_mcp_bench.smoke import ROOT
-from browser_mcp_bench.personal_fixtures import FIXTURE_CLASSES, date_in, has, time_in
+from kitsune_benchmark.personal import PILOT_FIXTURES, PersonalServer, catalog
+from kitsune_benchmark.personal_session import NativeSession
+from kitsune_benchmark.smoke import ROOT
+from kitsune_benchmark.personal_fixtures import FIXTURE_CLASSES, date_in, has, time_in
 
 VALID = {"execution_status": "completed_unscored"}
 

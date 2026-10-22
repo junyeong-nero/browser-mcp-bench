@@ -3,7 +3,7 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from browser_mcp_bench.personal_analysis import analyze_run, analyze_suite, native_error
+from kitsune_benchmark.personal_analysis import analyze_run, analyze_suite, native_error
 
 
 class PersonalAnalysisTests(unittest.TestCase):

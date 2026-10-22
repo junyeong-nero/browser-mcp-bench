@@ -6,7 +6,7 @@ import unittest
 from contextlib import redirect_stdout
 from unittest.mock import patch
 
-from browser_mcp_bench.__main__ import main
+from kitsune_benchmark.__main__ import main
 
 
 class CLITests(unittest.TestCase):
@@ -22,7 +22,7 @@ class CLITests(unittest.TestCase):
 
     def test_plan_outputs_json_without_processes(self):
         out = io.StringIO()
-        with patch("browser_mcp_bench.adapter.resolve", return_value="/codex"), patch(
+        with patch("kitsune_benchmark.adapter.resolve", return_value="/codex"), patch(
                 "subprocess.Popen", side_effect=AssertionError("No model in plan")), redirect_stdout(out):
             code = main(["plan", *self.flags])
         self.assertEqual(code, 0)
@@ -37,7 +37,7 @@ class CLITests(unittest.TestCase):
 
     def test_execution_status_exit_codes_and_arguments(self):
         for status, expected in (("completed_unscored", 0), ("invalid_trace", 3), ("timeout", 3)):
-            with self.subTest(status=status), patch("browser_mcp_bench.__main__.run",
+            with self.subTest(status=status), patch("kitsune_benchmark.__main__.run",
                     return_value={"execution_status": status}) as mocked, redirect_stdout(io.StringIO()):
                 code = main(["run", *self.flags, "--confirm-isolated-browser", "--timeout", "17"])
                 self.assertEqual(code, expected)

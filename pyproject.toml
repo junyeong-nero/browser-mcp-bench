@@ -3,7 +3,7 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "browser-mcp-bench"
+name = "kitsune-benchmark"
 version = "0.1.0"
 description = "Paired browser MCP evaluation using a subscription-backed Codex harness"
 requires-python = ">=3.11"
@@ -13,10 +13,10 @@ dependencies = [
 ]
 
 [project.scripts]
-browser-mcp-bench = "browser_mcp_bench.__main__:main"
+kitsune-benchmark = "kitsune_benchmark.__main__:main"
 
 [tool.setuptools.packages.find]
-include = ["browser_mcp_bench*"]
+include = ["kitsune_benchmark*"]
 
 [tool.setuptools.package-data]
-browser_mcp_bench = ["gallery_static/*.js", "gallery_static/*.css"]
+kitsune_benchmark = ["gallery_static/*.js", "gallery_static/*.css"]

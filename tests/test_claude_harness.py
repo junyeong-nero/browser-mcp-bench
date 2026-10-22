@@ -10,14 +10,14 @@ import os
 from contextlib import redirect_stdout
 from unittest.mock import patch
 
-from browser_mcp_bench import claude_harness
-from browser_mcp_bench.__main__ import main
-from browser_mcp_bench.adapter import claude_budget, harness_pins, run
-from browser_mcp_bench.claude_harness import (FILTER_SCRIPT, audit_events, claude_environment, command, diagnose,
+from kitsune_benchmark import claude_harness
+from kitsune_benchmark.__main__ import main
+from kitsune_benchmark.adapter import claude_budget, harness_pins, run
+from kitsune_benchmark.claude_harness import (FILTER_SCRIPT, audit_events, claude_environment, command, diagnose,
                                               load_api_key)
-from browser_mcp_bench.personal import config, run_personal
-from browser_mcp_bench.specs import Task
-from browser_mcp_bench.specs import Server
+from kitsune_benchmark.personal import config, run_personal
+from kitsune_benchmark.specs import Task
+from kitsune_benchmark.specs import Server
 
 SERVER = Server("kitsune", "uv", ("run", "kitsune"), ("KITSUNE_TOKEN",), 30, 45, ("browser_tabs", "browser_click"))
 INIT = {"type": "system", "subtype": "init", "tools": ["mcp__browser__browser_tabs", "mcp__browser__browser_click"],
@@ -311,7 +311,7 @@ print({chr(10).join(json.dumps(e) for e in events)!r}.replace('@SOURCE@', source
             calls.append(kwargs["harness"])
             ok = {"benchmark_evaluation": {"scorable": True, "task_success": True}, "list_price_cost_usd": 0.2, "usage": {}}
             return {"pair_dir": folder, "results": {"playwright": dict(ok), "kitsune": dict(ok)}}
-        with patch("browser_mcp_bench.personal.run_pair", side_effect=fake_pair):
+        with patch("kitsune_benchmark.personal.run_pair", side_effect=fake_pair):
             # Worst case per pair is 2 x 0.5 = 1.0 and each pair really costs 0.4:
             # pairs start at spent 0, 0.4, 0.8; the 4th would risk 1.2 + 1.0 > 2.0.
             result = run_personal(execute=True, harness="claude-api", budget_usd=2.0)
@@ -320,7 +320,7 @@ print({chr(10).join(json.dumps(e) for e in events)!r}.replace('@SOURCE@', source
         self.assertAlmostEqual(result["estimated_cost_usd"], 1.2)
         with self.assertRaises(ValueError):
             run_personal(execute=True, harness="claude", budget_usd=1.0)
-        with patch("browser_mcp_bench.personal.run_pair", side_effect=fake_pair), self.assertRaisesRegex(ValueError, "nothing was run"):
+        with patch("kitsune_benchmark.personal.run_pair", side_effect=fake_pair), self.assertRaisesRegex(ValueError, "nothing was run"):
             run_personal(execute=True, harness="claude-api", budget_usd=0.5)
         with redirect_stdout(io.StringIO()) as out:
             self.assertEqual(main(["personal", "--harness", "claude-api", "--all", "--budget-usd", "30"]), 0)
@@ -353,7 +353,7 @@ class BenchmarkProtocolTests(unittest.TestCase):
         self.assertEqual(claude_budget(config(), "claude-api-full"), 0.5)
 
     def test_v2_contract_allows_closing_agent_tabs_only(self):
-        from browser_mcp_bench.personal import PersonalServer, selected_tasks
+        from kitsune_benchmark.personal import PersonalServer, selected_tasks
         with PersonalServer(selected_tasks(["pb-current-01"])[0], 0) as server:
             server.begin("kitsune")
             trial = server.trials[server.by_target["kitsune"]]
@@ -380,8 +380,8 @@ class BenchmarkProtocolTests(unittest.TestCase):
             calls.append((kwargs["kitsune_preset"], kwargs["targets"]))
             ok = {"benchmark_evaluation": {"scorable": True, "task_success": True}, "usage": {}}
             return {"pair_dir": tempfile.mkdtemp(), "results": {"kitsune": dict(ok)}}
-        with patch("browser_mcp_bench.personal.run_pair", side_effect=fake_pair), \
-                patch("browser_mcp_bench.personal.source_revision", side_effect=lambda path: next(revisions)):
+        with patch("kitsune_benchmark.personal.run_pair", side_effect=fake_pair), \
+                patch("kitsune_benchmark.personal.source_revision", side_effect=lambda path: next(revisions)):
             result = run_personal(execute=True, targets=("kitsune",), kitsune_preset="lean")
         # Reads: start a; pair 1 after a; pair 2 before a, after a; pair 3 before b -> stop.
         self.assertEqual(result["stopped_reason"], "kitsune_revision_changed")

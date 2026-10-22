@@ -44,7 +44,7 @@ Source locations below refer to the clean sibling Kitsune checkout at
 - `../kitsune/extension/background/background.js:387–398`: browser tab query.
 - `background.js:449–456`: `createTab()` returns an ID immediately after
   `browser.tabs.create()`, without waiting for the new URL/page to settle.
-- `browser_mcp_bench/personal_session.py`, `wait_inventory()`/`prepare()`: the
+- `kitsune_benchmark/personal_session.py`, `wait_inventory()`/`prepare()`: the
   benchmark polls at 100 ms until seeded URLs/selected tab match.
 
 Mechanism:
@@ -199,7 +199,7 @@ timings are not a zero-overhead profiler.
 ### Offline analysis: no new quota
 
 ```sh
-uv run --locked python -m browser_mcp_bench.personal_analysis \
+uv run --locked python -m kitsune_benchmark.personal_analysis \
   artifacts/personal/20261019T104926Z-ef986c9a42/suite-summary.json \
   --output artifacts/personal/20261019T104926Z-ef986c9a42/analysis-review.json
 ```

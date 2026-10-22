@@ -159,10 +159,10 @@ After the [normal setup](../running.md#setup):
 
 ```sh
 # Plan/check the exact selection without inference.
-uv run --locked python -m browser_mcp_bench personal --task pb-current-01 --variant 0
+uv run --locked python -m kitsune_benchmark personal --task pb-current-01 --variant 0
 
 # Explicitly consumes subscription quota; does not reproduce an identical agent trajectory.
-uv run --locked python -m browser_mcp_bench personal \
+uv run --locked python -m kitsune_benchmark personal \
   --task pb-current-01 --variant 0 --execute
 ```
 

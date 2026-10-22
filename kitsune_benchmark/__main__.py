@@ -19,7 +19,7 @@ from .personal import config as personal_config, pair_complete, run_personal, ru
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Browser MCP benchmark tooling")
+    parser = argparse.ArgumentParser(description="Kitsune browser MCP benchmark tooling")
     subparsers = parser.add_subparsers(dest="command", required=True)
     doctor = subparsers.add_parser("doctor", help="Check Codex prerequisites without a model call")
     doctor.add_argument("--codex", default="codex", help="Codex executable name or path")

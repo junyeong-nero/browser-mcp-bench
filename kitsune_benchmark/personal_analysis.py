@@ -1,6 +1,6 @@
 """Offline analysis of personal-task evidence. Never invokes a model or browser.
 
-Usage: python -m browser_mcp_bench.personal_analysis <suite-summary.json> --output <private.json>
+Usage: python -m kitsune_benchmark.personal_analysis <suite-summary.json> --output <private.json>
 Serialized schema sizes are characters/bytes, NOT provider token estimates.
 """
 from __future__ import annotations

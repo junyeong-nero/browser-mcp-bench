@@ -12,8 +12,8 @@ import unittest
 from urllib.error import HTTPError
 from urllib.request import HTTPCookieProcessor, ProxyHandler, Request, build_opener
 
-from browser_mcp_bench.gallery import BY_ID, LAYOUTS, PUZZLES, STATIC, TASKS, GalleryServer, GalleryTrial, select
-from browser_mcp_bench.smoke import ROOT
+from kitsune_benchmark.gallery import BY_ID, LAYOUTS, PUZZLES, STATIC, TASKS, GalleryServer, GalleryTrial, select
+from kitsune_benchmark.smoke import ROOT
 
 MEDIA_TOOLS = all(shutil.which(t) for t in ("ffmpeg", "espeak"))
 VALID = {"execution_status": "completed_unscored"}

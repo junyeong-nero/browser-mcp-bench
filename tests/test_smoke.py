@@ -6,8 +6,8 @@ import unittest
 from contextlib import redirect_stdout
 from unittest.mock import patch
 
-from browser_mcp_bench.__main__ import main
-from browser_mcp_bench.smoke import ROOT, WS_SETTING, copy_extension, experiment, private_ports, run_pair
+from kitsune_benchmark.__main__ import main
+from kitsune_benchmark.smoke import ROOT, WS_SETTING, copy_extension, experiment, private_ports, run_pair
 
 
 class SmokeTests(unittest.TestCase):

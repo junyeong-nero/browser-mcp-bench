@@ -305,7 +305,7 @@ def run(
     events_path = run_dir / "events.jsonl"
     stderr_path = run_dir / "stderr.log"
     with ResourceCollector(run_dir, roots=resource_roots) as resources:
-        with tempfile.TemporaryDirectory(prefix="browser-mcp-bench-") as workspace:
+        with tempfile.TemporaryDirectory(prefix="kitsune-benchmark-") as workspace:
             with events_path.open("xb") as stdout, stderr_path.open("xb") as stderr:
                 try:
                     process = subprocess.Popen(argv, cwd=workspace, env=env,

@@ -10,11 +10,11 @@ from urllib.parse import parse_qs, urlsplit
 from urllib.request import Request, build_opener, ProxyHandler
 from unittest.mock import patch
 
-from browser_mcp_bench.__main__ import main
-from browser_mcp_bench.adapter import settings
-from browser_mcp_bench.audit import audit_events
-from browser_mcp_bench.miniwob import BenchmarkServer, Trial, UI_TOOLS, bootstrap, config, run_benchmark
-from browser_mcp_bench.specs import Server
+from kitsune_benchmark.__main__ import main
+from kitsune_benchmark.adapter import settings
+from kitsune_benchmark.audit import audit_events
+from kitsune_benchmark.miniwob import BenchmarkServer, Trial, UI_TOOLS, bootstrap, config, run_benchmark
+from kitsune_benchmark.specs import Server
 
 
 def event(kind="end", raw=1, reward=0.9):

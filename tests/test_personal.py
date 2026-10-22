@@ -13,14 +13,14 @@ from urllib.error import HTTPError
 from urllib.parse import urlencode
 from urllib.request import HTTPCookieProcessor, ProxyHandler, Request, build_opener
 
-from browser_mcp_bench.__main__ import main
-from browser_mcp_bench.personal import (PROTECTED_NOTE, PersonalServer, aggregate_results, catalog, config,
+from kitsune_benchmark.__main__ import main
+from kitsune_benchmark.personal import (PROTECTED_NOTE, PersonalServer, aggregate_results, catalog, config,
                                        run_personal, selected_tasks)
-from browser_mcp_bench.personal_session import NativeSession, tabs_from_result
-from browser_mcp_bench.smoke import ROOT, await_bridge, copy_extension, private_ports
-from browser_mcp_bench.adapter import resolve, terminate_group
-from browser_mcp_bench.runtime import codex_environment
-from browser_mcp_bench.specs import Server
+from kitsune_benchmark.personal_session import NativeSession, tabs_from_result
+from kitsune_benchmark.smoke import ROOT, await_bridge, copy_extension, private_ports
+from kitsune_benchmark.adapter import resolve, terminate_group
+from kitsune_benchmark.runtime import codex_environment
+from kitsune_benchmark.specs import Server
 
 
 def evidence_for(trial):
@@ -201,7 +201,7 @@ class PersonalTests(unittest.TestCase):
     def test_suite_stops_after_unscorable_pair_without_fallback(self):
         with tempfile.TemporaryDirectory() as folder:
             pair = {"pair_dir": folder, "results": {"playwright": {"benchmark_evaluation": {"scorable": False}}}}
-            with patch("browser_mcp_bench.personal.run_pair", return_value=pair) as run:
+            with patch("kitsune_benchmark.personal.run_pair", return_value=pair) as run:
                 result = run_personal(execute=True)
             self.assertEqual(run.call_count, 1)
             self.assertEqual(result["requested_pairs"], 6)
@@ -265,7 +265,7 @@ for line in sys.stdin:
                 "enabled_tools": ["browser_snapshot"], "diagnostics_path": str(root / "rpc.jsonl"),
                 "metadata_path": str(root / "metadata.json")}
             (root / "config.json").write_text(json.dumps(settings))
-            transport = NativeSession({"upstream": [sys.executable, str(ROOT / "browser_mcp_bench/personal_session.py"), str(root / "config.json")]})
+            transport = NativeSession({"upstream": [sys.executable, str(ROOT / "kitsune_benchmark/personal_session.py"), str(root / "config.json")]})
             try:
                 transport.start()
                 response = transport.request("initialize", {"protocolVersion": "2024-11-05", "capabilities": {}})

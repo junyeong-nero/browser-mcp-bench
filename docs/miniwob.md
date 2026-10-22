@@ -50,13 +50,13 @@ npm ci --ignore-scripts --no-audit --no-fund
 npm run setup:firefox
 
 # Source download only; does not invoke a model.
-uv run --locked python -m browser_mcp_bench benchmark --fetch
+uv run --locked python -m kitsune_benchmark benchmark --fetch
 
 # Plan only; does not start browsers, Codex, or inference.
-uv run --locked python -m browser_mcp_bench benchmark
+uv run --locked python -m kitsune_benchmark benchmark
 
 # Actual paired trial; consumes ChatGPT subscription quota.
-uv run --locked python -m browser_mcp_bench benchmark --execute
+uv run --locked python -m kitsune_benchmark benchmark --execute
 ```
 
 Provide `--kitsune-project /absolute/path/to/kitsune` if the source is not the

@@ -13,7 +13,7 @@ from unittest.mock import patch
 
 import psutil
 
-from browser_mcp_bench.resources import ResourceCollector, ResourceRoot, ProcessProbe, component_for
+from kitsune_benchmark.resources import ResourceCollector, ResourceRoot, ProcessProbe, component_for
 
 
 def process(pid=100, created=1.0, rss=100, user=5.0, owner="kitsune", component="browser", external=False):
@@ -53,15 +53,15 @@ class ResourceTests(unittest.TestCase):
     def test_weighted_mean_cpu_deltas_and_phase_boundaries(self):
         collector, probe = self.manual()
         probe.rows = [process()]
-        with patch("browser_mcp_bench.resources.time.monotonic", return_value=0):
+        with patch("kitsune_benchmark.resources.time.monotonic", return_value=0):
             collector.sample()
         probe.rows = [process(rss=200, user=7)]
-        with patch("browser_mcp_bench.resources.time.monotonic", return_value=2):
+        with patch("kitsune_benchmark.resources.time.monotonic", return_value=2):
             collector.sample()
-        with patch("browser_mcp_bench.resources.time.monotonic", return_value=4):
+        with patch("kitsune_benchmark.resources.time.monotonic", return_value=4):
             collector.set_phase("task")
         probe.rows = [process(rss=300, user=9)]
-        with patch("browser_mcp_bench.resources.time.monotonic", return_value=6):
+        with patch("kitsune_benchmark.resources.time.monotonic", return_value=6):
             collector.__exit__(None, None, None)
         all_metrics = collector.summary["metrics"]["all"]
         self.assertEqual(all_metrics["sampled_peak_rss_bytes"], 300)
@@ -73,10 +73,10 @@ class ResourceTests(unittest.TestCase):
     def test_pid_reuse_has_a_separate_cpu_baseline(self):
         collector, probe = self.manual()
         probe.rows = [process(user=10)]
-        with patch("browser_mcp_bench.resources.time.monotonic", return_value=0):
+        with patch("kitsune_benchmark.resources.time.monotonic", return_value=0):
             collector.sample()
         probe.rows = [process(created=2, user=50)]
-        with patch("browser_mcp_bench.resources.time.monotonic", return_value=1):
+        with patch("kitsune_benchmark.resources.time.monotonic", return_value=1):
             collector.sample()
         self.assertEqual(collector._previous["processes"][0]["cpu_user_delta_sec"], 0)
         self.assertEqual(len(collector._identities), 2)
@@ -86,7 +86,7 @@ class ResourceTests(unittest.TestCase):
         collector, probe = self.manual()
         probe.rows = [process(created=101, user=0.5, owner="playwright"),
                       process(pid=200, user=5, external=True)]
-        with patch("browser_mcp_bench.resources.time.monotonic", return_value=2):
+        with patch("kitsune_benchmark.resources.time.monotonic", return_value=2):
             collector.sample()
         row = collector._previous
         self.assertEqual(row["groups"]["owner/playwright"]["user"], 0.5)
@@ -112,12 +112,12 @@ class ResourceTests(unittest.TestCase):
     def test_recycled_root_is_not_followed(self):
         probe = ProcessProbe()
         p = SimpleNamespace(pid=123, create_time=lambda: 1.0)
-        with patch("browser_mcp_bench.resources.psutil.Process", return_value=p):
+        with patch("kitsune_benchmark.resources.psutil.Process", return_value=p):
             probe.register(ResourceRoot(123, "harness", "test"))
         p.create_time = lambda: 2.0
         p.oneshot = nullcontext
         p.children = lambda: self.fail("Never follow children of a recycled root")
-        with patch("browser_mcp_bench.resources.psutil.Process", return_value=p):
+        with patch("kitsune_benchmark.resources.psutil.Process", return_value=p):
             rows, _ = probe.capture()
         self.assertEqual(rows, [])
 

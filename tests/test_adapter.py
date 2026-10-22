@@ -8,10 +8,10 @@ import tomllib
 import unittest
 from unittest.mock import Mock, patch
 
-from browser_mcp_bench.adapter import command, plan, run, settings, preflight, terminate_group
-from browser_mcp_bench.audit import audit_events
-from browser_mcp_bench.runtime import API_ENV, codex_environment, find_codex
-from browser_mcp_bench.specs import Server, Task, load_server, load_task, toml_value
+from kitsune_benchmark.adapter import command, plan, run, settings, preflight, terminate_group
+from kitsune_benchmark.audit import audit_events
+from kitsune_benchmark.runtime import API_ENV, codex_environment, find_codex
+from kitsune_benchmark.specs import Server, Task, load_server, load_task, toml_value
 
 SERVER = Server("test", "/test/mcp", ("--test",))
 TASK = Task("test-task", "Read a test page; do not change anything.")
@@ -133,7 +133,7 @@ sys.exit(1 if {mode!r}=='error' else 0)
         observed = json.loads((self.root / "observed.json").read_text())
         self.assertEqual(observed["prompt"], TASK.prompt)
         self.assertNotIn("OPENAI_API_KEY", observed["env"])
-        self.assertTrue(Path(observed["cwd"]).name.startswith("browser-mcp-bench-"))
+        self.assertTrue(Path(observed["cwd"]).name.startswith("kitsune-benchmark-"))
         self.assertFalse(Path(observed["cwd"]).exists())
         run_dir = Path(result["run_dir"])
         self.assertEqual(run_dir.stat().st_mode & 0o777, 0o700)
@@ -201,8 +201,8 @@ sys.exit(1 if {mode!r}=='error' else 0)
 
     def test_launch_failure_is_recorded_without_exception_contents(self):
         path = self.fake_codex()
-        with patch("browser_mcp_bench.adapter.preflight", return_value={}), patch(
-            "browser_mcp_bench.adapter.subprocess.Popen", side_effect=OSError("SECRET")):
+        with patch("kitsune_benchmark.adapter.preflight", return_value={}), patch(
+            "kitsune_benchmark.adapter.subprocess.Popen", side_effect=OSError("SECRET")):
             result = self.execute(path)
         self.assertEqual(result["execution_status"], "harness_error")
         self.assertNotIn("SECRET", json.dumps(result))
@@ -228,9 +228,9 @@ sys.exit(1 if {mode!r}=='error' else 0)
         executable = bin_dir / "codex"
         executable.write_text("fake")
         executable.chmod(0o700)
-        with patch("browser_mcp_bench.runtime.Path.home", return_value=self.root), patch(
-                "browser_mcp_bench.runtime.shutil.which", return_value=None), patch(
-                "browser_mcp_bench.runtime.os.access", side_effect=lambda p, mode: str(p).startswith(str(self.root))):
+        with patch("kitsune_benchmark.runtime.Path.home", return_value=self.root), patch(
+                "kitsune_benchmark.runtime.shutil.which", return_value=None), patch(
+                "kitsune_benchmark.runtime.os.access", side_effect=lambda p, mode: str(p).startswith(str(self.root))):
             self.assertEqual(find_codex(), str(executable))
             second = self.root / ".nvm/versions/node/v2/bin/codex"
             second.parent.mkdir(parents=True)
@@ -241,12 +241,12 @@ sys.exit(1 if {mode!r}=='error' else 0)
 
     def test_dead_group_permission_error_is_not_a_cleanup_failure(self):
         process = Mock(pid=123456)
-        with patch("browser_mcp_bench.adapter.os.killpg", side_effect=[None, PermissionError()]), patch(
-                "browser_mcp_bench.adapter._has_live_group", return_value=False):
+        with patch("kitsune_benchmark.adapter.os.killpg", side_effect=[None, PermissionError()]), patch(
+                "kitsune_benchmark.adapter._has_live_group", return_value=False):
             terminate_group(process)
         self.assertTrue(process.wait.called)
-        with patch("browser_mcp_bench.adapter.os.killpg", side_effect=PermissionError()), patch(
-                "browser_mcp_bench.adapter._has_live_group", return_value=True):
+        with patch("kitsune_benchmark.adapter.os.killpg", side_effect=PermissionError()), patch(
+                "kitsune_benchmark.adapter._has_live_group", return_value=True):
             with self.assertRaises(PermissionError):
                 terminate_group(process)
 

@@ -1,5 +1,5 @@
 {
-  "name": "browser-mcp-bench-tools",
+  "name": "kitsune-benchmark-tools",
   "version": "0.1.0",
   "private": true,
   "description": "Pinned local tools for isolated Firefox smoke runs",

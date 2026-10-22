@@ -30,10 +30,10 @@ Personal tasks use synthetic local app state and test cookies. See
 
 ```sh
 # Version/help/login checks only, not a model-availability or quota test.
-uv run --locked python -m browser_mcp_bench doctor --json
+uv run --locked python -m kitsune_benchmark doctor --json
 
 # Exact one-pair plan: no browser, model, login check or fixture server.
-uv run --locked python -m browser_mcp_bench personal \
+uv run --locked python -m kitsune_benchmark personal \
   --task pb-current-01 --variant 0
 ```
 
@@ -43,7 +43,7 @@ check when the shell has such variables, omit them only for that child command:
 
 ```sh
 env -u OPENAI_API_KEY -u CODEX_API_KEY -u OPENAI_AUTH_TOKEN -u AZURE_OPENAI_API_KEY \
-  uv run --locked python -m browser_mcp_bench doctor --json
+  uv run --locked python -m kitsune_benchmark doctor --json
 ```
 
 No command edits the user's Codex authentication/configuration. The CLI alone
@@ -73,8 +73,8 @@ model/effort from each config's `claude_code` block (currently
 login**; `ANTHROPIC_*`/provider variables are never inherited.
 
 ```sh
-uv run --locked python -m browser_mcp_bench doctor --harness claude
-uv run --locked python -m browser_mcp_bench personal --harness claude --execute
+uv run --locked python -m kitsune_benchmark doctor --harness claude
+uv run --locked python -m kitsune_benchmark personal --harness claude --execute
 ```
 
 **API-key billing (`--harness claude-api`).** Same Claude Code isolation, but
@@ -89,8 +89,8 @@ worst case would exceed the suite total. `doctor` validates the key, workspace
 and model with free `GET` requests; it never runs inference.
 
 ```sh
-uv run --locked python -m browser_mcp_bench doctor --harness claude-api
-uv run --locked python -m browser_mcp_bench personal --harness claude-api --all --budget-usd 30 --execute
+uv run --locked python -m kitsune_benchmark doctor --harness claude-api
+uv run --locked python -m kitsune_benchmark personal --harness claude-api --all --budget-usd 30 --execute
 ```
 
 `total_cost_usd` is Claude Code's client-side estimate; the Console usage page is
@@ -106,7 +106,7 @@ so both client behaviours can be measured. Report them as separate cohorts.
 ```sh
 # A dedicated clone, so other work in ../kitsune cannot move it mid-suite.
 git clone https://github.com/junyeong-nero/kitsune.git artifacts/vendor/kitsune-pinned
-uv run --locked python -m browser_mcp_bench personal --harness claude-api --all \
+uv run --locked python -m kitsune_benchmark personal --harness claude-api --all \
   --kitsune-project artifacts/vendor/kitsune-pinned --targets kitsune \
   --kitsune-preset lean --budget-usd 10 --execute
 ```
@@ -122,7 +122,7 @@ and `--targets` to pick MCPs. Live sites change, so judge results from the trace
 screenshots, and never treat them as benchmark scores.
 
 ```sh
-uv run --locked python -m browser_mcp_bench smoke --harness claude-api \
+uv run --locked python -m kitsune_benchmark smoke --harness claude-api \
   --task tasks/live/steam-goty-2025-negative-100h.json --ui-tools --targets kitsune \
   --kitsune-project artifacts/vendor/kitsune-pinned --timeout 300 --execute
 ```
@@ -152,14 +152,14 @@ separate experiments, not one leaderboard.
 
 ```sh
 # One explicit quota-consuming pair.
-uv run --locked python -m browser_mcp_bench personal \
+uv run --locked python -m kitsune_benchmark personal \
   --task pb-current-01 --variant 0 --execute
 
 # Larger pilot: only run after inspecting a small pair and agreeing the quota budget.
-uv run --locked python -m browser_mcp_bench personal --execute
+uv run --locked python -m kitsune_benchmark personal --execute
 
 # Select tasks explicitly; repeat --task for each selection.
-uv run --locked python -m browser_mcp_bench personal \
+uv run --locked python -m kitsune_benchmark personal \
   --task pb-tabs-01 --task pb-safe-01 --variant 1 --execute
 ```
 
@@ -175,13 +175,13 @@ See the [catalog and protocol](personal-browsing.md#catalog) for eligible tasks 
 
 ```sh
 # Read-only connectivity/tool smoke; no external success grader.
-uv run --locked python -m browser_mcp_bench smoke
-uv run --locked python -m browser_mcp_bench smoke --execute
+uv run --locked python -m kitsune_benchmark smoke
+uv run --locked python -m kitsune_benchmark smoke --execute
 
 # MiniWoB source fetch only: network/download, but no model inference.
-uv run --locked python -m browser_mcp_bench benchmark --fetch
-uv run --locked python -m browser_mcp_bench benchmark
-uv run --locked python -m browser_mcp_bench benchmark --execute
+uv run --locked python -m kitsune_benchmark benchmark --fetch
+uv run --locked python -m kitsune_benchmark benchmark
+uv run --locked python -m kitsune_benchmark benchmark --execute
 ```
 
 MiniWoB is the small [upstream task/reward integration](miniwob.md), not the
@@ -276,7 +276,7 @@ Codex raw payloads and final usage remain in `runs/<id>/events.jsonl`.
 
 ```sh
 # Reads already recorded evidence. No model, browser or network request.
-uv run --locked python -m browser_mcp_bench.personal_analysis \
+uv run --locked python -m kitsune_benchmark.personal_analysis \
   artifacts/personal/20261019T104926Z-ef986c9a42/suite-summary.json \
   --output artifacts/personal/20261019T104926Z-ef986c9a42/analysis-review.json
 ```

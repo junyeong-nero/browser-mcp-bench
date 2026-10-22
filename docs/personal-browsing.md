@@ -15,7 +15,7 @@ browser session**, not just opening an empty browser and following a URL.
   [`tasks/personal/catalog.json`](../tasks/personal/catalog.json).
 - **All 24 tasks are runnable local fixtures.** The original six (one per
   category) form the default pilot; `personal --all` selects all 24. The 18
-  newer fixtures live in `browser_mcp_bench/personal_fixtures.py`, grade
+  newer fixtures live in `kitsune_benchmark/personal_fixtures.py`, grade
   free-text answers by required facts, and open in-page links in new tabs.
 - **Three deterministic data variants** (`0`, `1`, `2`) per runnable task.
   These are different inputs, not three identical repeated trials.
@@ -164,24 +164,24 @@ For setup and the recommended smallest-run sequence, use the
 Plan only: no model, browser, upstream download, login check or fixture server:
 
 ```sh
-uv run --locked python -m browser_mcp_bench personal
-uv run --locked python -m browser_mcp_bench personal --task pb-tabs-01 --variant 1
+uv run --locked python -m kitsune_benchmark personal
+uv run --locked python -m kitsune_benchmark personal --task pb-tabs-01 --variant 1
 ```
 
 After the normal pinned-tool/private-Firefox setup in the main README:
 
 ```sh
 # Start with one task pair: at most two Codex agent runs.
-uv run --locked python -m browser_mcp_bench personal --task pb-current-01 --execute
+uv run --locked python -m kitsune_benchmark personal --task pb-current-01 --execute
 
 # Six-task pilot: at most twelve agent runs. Explicitly consumes subscription quota.
-uv run --locked python -m browser_mcp_bench personal --execute
+uv run --locked python -m kitsune_benchmark personal --execute
 
 # Separate variant: do not silently multiply repetitions.
-uv run --locked python -m browser_mcp_bench personal --variant 1 --execute
+uv run --locked python -m kitsune_benchmark personal --variant 1 --execute
 
 # Select multiple implemented tasks; specification-only/unknown/duplicate IDs fail before inference.
-uv run --locked python -m browser_mcp_bench personal \
+uv run --locked python -m kitsune_benchmark personal \
   --task pb-tabs-01 --task pb-safe-01 --execute
 ```
 

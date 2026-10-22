@@ -93,11 +93,11 @@ Standalone `doctor` reports inherited API credential variables as a prerequisite
 failure, while actual runs strip them before checking/executing:
 
 ```sh
-uv run --locked python -m browser_mcp_bench doctor --json
+uv run --locked python -m kitsune_benchmark doctor --json
 
 # Optional subscription-only check if the parent shell contains API variables:
 env -u OPENAI_API_KEY -u CODEX_API_KEY -u OPENAI_AUTH_TOKEN -u AZURE_OPENAI_API_KEY \
-  uv run --locked python -m browser_mcp_bench doctor --json
+  uv run --locked python -m kitsune_benchmark doctor --json
 ```
 
 A dedicated auth home is optional and has not been set up. If desired, log in
@@ -118,7 +118,7 @@ The audit checks that observed tool names match the supplied allowlist and
 rejects JavaScript/data/file navigation URLs in that restricted track.
 
 ```sh
-uv run --locked python -m browser_mcp_bench plan \
+uv run --locked python -m kitsune_benchmark plan \
   --server configs/servers/playwright.json \
   --task tasks/smoke/example-domain.json --model gpt-6-luna
 ```
@@ -136,8 +136,8 @@ the tested pair runner handles them explicitly.
 uv sync --locked
 npm ci --ignore-scripts --no-audit --no-fund
 npm run setup:firefox
-uv run --locked python -m browser_mcp_bench smoke       # plan, no inference
-uv run --locked python -m browser_mcp_bench smoke --execute
+uv run --locked python -m kitsune_benchmark smoke       # plan, no inference
+uv run --locked python -m kitsune_benchmark smoke --execute
 ```
 
 The setup helper downloads to `artifacts/browsers` with

@@ -8,7 +8,7 @@ each task correctly, and at what token cost. The personal track's fixtures are
 deliberately plain HTML forms with no JavaScript. This track covers what they
 cannot: custom widgets, portals, shadow DOM, iframes, async content, media.
 
-Code: `browser_mcp_bench/gallery.py` (tasks, server, graders),
+Code: `kitsune_benchmark/gallery.py` (tasks, server, graders),
 `gallery_static/` (component JS/CSS), `gallery_media.py` (media generation).
 
 ## Tasks (21, three variants each)
@@ -55,10 +55,10 @@ Contract v1/v2 is reported as in the personal track.
 ## Running
 
 ```sh
-uv run --locked python -m browser_mcp_bench gallery                    # plan only
-uv run --locked python -m browser_mcp_bench gallery --harness claude-api \
+uv run --locked python -m kitsune_benchmark gallery                    # plan only
+uv run --locked python -m kitsune_benchmark gallery --harness claude-api \
   --layout crowded --budget-usd 15 --kitsune-project artifacts/vendor/kitsune-pinned --execute
-uv run --locked python -m browser_mcp_bench gallery --category multimodal --layout isolated ...
+uv run --locked python -m kitsune_benchmark gallery --category multimodal --layout isolated ...
 ```
 
 Media generation needs ffmpeg (libvpx/libopus) and espeak, and Pillow is a

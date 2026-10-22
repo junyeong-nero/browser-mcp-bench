@@ -403,7 +403,7 @@ class PersonalServer:
             "enabled_tools": list(server.enabled_tools),
             "diagnostics_path": str(pair_dir / (target + "-native-rpc.jsonl")),
             "metadata_path": str(pair_dir / (target + "-native-metadata.json"))})
-        return replace(server, command=sys.executable, args=(str(ROOT / "browser_mcp_bench/personal_session.py"), str(path)))
+        return replace(server, command=sys.executable, args=(str(ROOT / "kitsune_benchmark/personal_session.py"), str(path)))
 
     def evaluate(self, target: str, result: dict) -> dict:
         try:

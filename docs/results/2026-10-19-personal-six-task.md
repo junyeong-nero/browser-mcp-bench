@@ -154,13 +154,13 @@ Full source references, priorities, logging limitations and acceptance checks:
 Original model execution, explicitly quota-consuming:
 
 ```sh
-uv run --locked python -m browser_mcp_bench personal --variant 0 --execute
+uv run --locked python -m kitsune_benchmark personal --variant 0 --execute
 ```
 
 Offline analysis of existing evidence, **no model or browser**:
 
 ```sh
-uv run --locked python -m browser_mcp_bench.personal_analysis \
+uv run --locked python -m kitsune_benchmark.personal_analysis \
   artifacts/personal/20261019T104926Z-ef986c9a42/suite-summary.json \
   --output artifacts/personal/20261019T104926Z-ef986c9a42/analysis-review.json
 ```

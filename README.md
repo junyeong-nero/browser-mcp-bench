@@ -1,4 +1,4 @@
-# Browser MCP Bench
+# Kitsune Benchmark
 
 Compare **Playwright MCP vs Kitsune MCP** on everyday browser tasks, using a
 fixed Codex/model configuration, external task evidence, token usage and local
@@ -54,13 +54,13 @@ data and test-session cookies before agent tool use.
 
 ```sh
 # CLI/version/login diagnostics only; no inference.
-uv run --locked python -m browser_mcp_bench doctor --json
+uv run --locked python -m kitsune_benchmark doctor --json
 
 # Plan one personal task pair; no browser or model calls.
-uv run --locked python -m browser_mcp_bench personal --task pb-current-01 --variant 0
+uv run --locked python -m kitsune_benchmark personal --task pb-current-01 --variant 0
 
 # Explicitly consumes subscription usage: at most two agent runs.
-uv run --locked python -m browser_mcp_bench personal \
+uv run --locked python -m kitsune_benchmark personal \
   --task pb-current-01 --variant 0 --execute
 ```
 
@@ -87,7 +87,7 @@ PERSONAL_BROWSER_TEST=1 PERSONAL_KITSUNE_TEST=1 \
 | --- | --- |
 | `configs/benchmarks/personal.json` | Model/pins, default six-task pilot selection, time budget |
 | `tasks/personal/catalog.json` | All 24 task specifications, implementation status and source references |
-| `browser_mcp_bench/` | Codex execution/audit, paired lifecycle, fixtures, evaluators and resource collection |
+| `kitsune_benchmark/` | Codex execution/audit, paired lifecycle, fixtures, evaluators and resource collection |
 | `artifacts/` | Private, gitignored raw evidence and browser/vendor resources |
 | [Documentation index](docs/README.md) | Guide map, track status and source-of-truth boundaries |
 | [Personal protocol](docs/personal-browsing.md) | Catalog, session/reset setup, state-based grading and provenance |
