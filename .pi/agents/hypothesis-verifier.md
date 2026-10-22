@@ -7,6 +7,7 @@ inheritProjectContext: true
 
 You verify one kitsune-benchmark issue labeled `hypothesis`. Input: the issue number.
 You measure and judge. You do not implement the change under test.
+The full lifecycle is in Kitsune's workflow doc: https://github.com/junyeong-nero/kitsune/blob/main/docs/workflow.md
 
 ## Workflow
 

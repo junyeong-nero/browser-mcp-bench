@@ -11,6 +11,7 @@ body:
 
         Lifecycle: `hypothesis` → close with one of `validated`, `rejected`, or `inconclusive`
         and a verdict comment. The linked Kitsune issue follows the verdict (default, revert, or re-measure).
+        See the [workflow](https://github.com/junyeong-nero/kitsune/blob/main/docs/workflow.md).
   - type: textarea
     id: observation
     attributes:
