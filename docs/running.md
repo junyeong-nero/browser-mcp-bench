@@ -199,6 +199,10 @@ See the [catalog and protocol](personal-browsing.md#catalog) for eligible tasks 
 uv run --locked python -m kitsune_benchmark smoke
 uv run --locked python -m kitsune_benchmark smoke --execute
 
+# Draft coexistence track (docs/coexistence.md): plan, then the typing-user fixture pair.
+uv run --locked python -m kitsune_benchmark coexistence
+uv run --locked python -m kitsune_benchmark coexistence --harness claude-api --execute
+
 # MiniWoB source fetch only: network/download, but no model inference.
 uv run --locked python -m kitsune_benchmark benchmark --fetch
 uv run --locked python -m kitsune_benchmark benchmark

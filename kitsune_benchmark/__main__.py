@@ -16,6 +16,7 @@ from pathlib import Path
 from .miniwob import run_benchmark
 from .gallery import run_gallery
 from .personal import config as personal_config, pair_complete, run_personal, runnable_ids
+from .coexistence import run_coexistence
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -77,7 +78,21 @@ def main(argv: list[str] | None = None) -> int:
     gallery.add_argument("--kitsune-preset")
     gallery.add_argument("--targets", default="playwright,kitsune")
     gallery.add_argument("--budget-usd", type=float)
-    for child in (smoke, benchmark, personal, gallery):
+    coexistence = subparsers.add_parser("coexistence", help="Draft coexistence track: user-seeded tabs, a simulated "
+                                        "user and view telemetry; plan by default")
+    coexistence.add_argument("--execute", action="store_true", help="Run selected pairs; consumes quota or API credit")
+    coexistence.add_argument("--task", action="append", dest="task_ids",
+                             help="Runnable co-* task, or a personal pb-* task to run user-seeded; repeatable; "
+                                  "default: runnable co-* tasks")
+    coexistence.add_argument("--all-personal", action="store_true", help="All 24 personal tasks under the user-seeded condition")
+    coexistence.add_argument("--protect-user-tabs", action="store_true",
+                             help="Kitsune arm with KITSUNE_PROTECT_USER_TABS=1 (reported separately)")
+    coexistence.add_argument("--variant", type=int, choices=(0, 1, 2), default=0)
+    coexistence.add_argument("--codex", default="codex")
+    coexistence.add_argument("--kitsune-project")
+    coexistence.add_argument("--targets", default="playwright,kitsune")
+    coexistence.add_argument("--budget-usd", type=float)
+    for child in (smoke, benchmark, personal, gallery, coexistence):
         child.add_argument("--harness", choices=HARNESSES, default="codex",
                            help="Agent CLI: codex (ChatGPT login), claude (Claude Code, claude.ai login) "
                                 "claude-api (Claude Code --bare, ANTHROPIC_API_KEY from .env; billed per token) "
@@ -123,6 +138,18 @@ def main(argv: list[str] | None = None) -> int:
                 return 0
             return 0 if result["completed_pairs"] == result["requested_pairs"] and all(
                 pair_complete(pair, tuple(result["targets"])) for pair in result["pairs"]) else 3
+        if args.command == "coexistence":
+            if args.all_personal and args.task_ids:
+                raise ValueError("Use either --all-personal or --task.")
+            result = run_coexistence(execute=args.execute, task_ids=runnable_ids() if args.all_personal else args.task_ids,
+                                     variant=args.variant, kitsune_project=args.kitsune_project, executable=executable,
+                                     harness=args.harness, budget_usd=args.budget_usd,
+                                     protect_user_tabs=args.protect_user_tabs,
+                                     targets=tuple(args.targets.split(",")), **overrides)
+            print(json.dumps(result, indent=2, ensure_ascii=False))
+            if not args.execute:
+                return 0
+            return 0 if result["completed_pairs"] == result["requested_pairs"] else 3
         if args.command == "gallery":
             result = run_gallery(execute=args.execute, task_ids=args.task_ids, category=args.category, variant=args.variant,
                                  layout=args.layout, kitsune_project=args.kitsune_project, executable=executable,

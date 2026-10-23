@@ -130,13 +130,29 @@ def run_pair(*, execute: bool = False, kitsune_project: str | None = None,
              enabled_tools: dict[str, tuple[str, ...]] | None = None,
              prepare_server: Callable[[str, Server, Task, Path], Server] | None = None,
              harness: str = "codex", kitsune_preset: str | None = None,
-             targets: tuple[str, ...] = TARGETS) -> dict:
+             targets: tuple[str, ...] = TARGETS,
+             kitsune_env: dict[str, str] | None = None,
+             kitsune_firefox_args: tuple[str, ...] = (),
+             kitsune_firefox_prefs: dict[str, str] | None = None) -> dict:
     """kitsune_preset sets KITSUNE_TOOL_PRESET for the Kitsune server (A/B of its tool surface).
-    targets restricts which MCPs run, e.g. Kitsune-only A/B arms."""
+    targets restricts which MCPs run, e.g. Kitsune-only A/B arms.
+    kitsune_env adds KITSUNE_* settings (e.g. KITSUNE_PROTECT_USER_TABS) for the Kitsune server;
+    kitsune_firefox_args/prefs extend the web-ext Firefox launch (the coexistence track's user
+    channel). The defaults leave every existing track's launch unchanged."""
     if not targets or len(set(targets)) != len(targets) or set(targets) - set(TARGETS):
         raise ValueError("targets must be a non-empty subset of playwright, kitsune.")
     if kitsune_preset is not None and not re.fullmatch(r"[a-z][a-z0-9_-]{0,31}", kitsune_preset):
         raise ValueError("Invalid Kitsune tool preset name.")
+    reserved = {"KITSUNE_HOME", "KITSUNE_HTTP_PORT", "KITSUNE_WS_PORT", "KITSUNE_TOKEN", "KITSUNE_TOOL_PRESET"}
+    for key, value in (kitsune_env or {}).items():
+        if not re.fullmatch(r"KITSUNE_[A-Z_]{1,40}", key) or key in reserved or not isinstance(value, str):
+            raise ValueError("kitsune_env takes KITSUNE_* string settings other than the bridge/preset ones.")
+    for arg in kitsune_firefox_args:
+        if not re.fullmatch(r"--[a-z][a-z-]{1,40}(=[0-9]{1,5})?", arg):
+            raise ValueError("Unsupported Firefox launch argument.")
+    for key, value in (kitsune_firefox_prefs or {}).items():
+        if not re.fullmatch(r"[a-z][a-zA-Z0-9_.-]{1,80}", key) or not re.fullmatch(r"true|false|[0-9]{1,9}", value):
+            raise ValueError("Unsupported Firefox preference.")
     spec = experiment() if experiment_spec is None else experiment_spec
     model, effort = harness_pins(spec, harness)
     max_budget_usd = claude_budget(spec, harness)
@@ -184,6 +200,9 @@ def run_pair(*, execute: bool = False, kitsune_project: str | None = None,
     if kitsune_preset is not None:
         env["KITSUNE_TOOL_PRESET"] = kitsune_preset
         kitsune_vars += ("KITSUNE_TOOL_PRESET",)
+    for key, value in sorted((kitsune_env or {}).items()):
+        env[key] = value
+        kitsune_vars += (key,)
     specs = {
         "playwright": Server("playwright", "node", (
             str(playwright_cli), "--browser", "firefox", "--isolated", "--headless",
@@ -199,6 +218,9 @@ def run_pair(*, execute: bool = False, kitsune_project: str | None = None,
         "experiment": spec, "harness": harness, "model": model, "reasoning_effort": effort,
         "max_budget_usd_per_run": max_budget_usd, "kitsune_tool_preset": kitsune_preset,
         "targets": list(targets),
+        **({"kitsune_env": dict(sorted(kitsune_env.items()))} if kitsune_env else {}),
+        **({"kitsune_firefox_args": list(kitsune_firefox_args)} if kitsune_firefox_args else {}),
+        **({"kitsune_firefox_prefs": dict(kitsune_firefox_prefs)} if kitsune_firefox_prefs else {}),
         "enabled_tools": enabled_tools, "browser_binary": str(firefox), "headless": True,
         "kitsune_source": source_revision(project), "benchmark_source": benchmark_source(),
         "extension_patch": patch_info,
@@ -237,7 +259,10 @@ def run_pair(*, execute: bool = False, kitsune_project: str | None = None,
             browser = spawn([str(web_ext), "run", "--no-config-discovery", "--no-input",
                 "--source-dir", str(pair_dir / "extension"), "--artifacts-dir", str(pair_dir / "web-ext"),
                 "--firefox", str(firefox), "--no-reload", "--start-url", "about:blank",
-                "--args=-headless", "--args=--width=1280", "--args=--height=720"], "firefox.log", "browser_launcher")
+                "--args=-headless", "--args=--width=1280", "--args=--height=720",
+                *("--args=" + arg for arg in kitsune_firefox_args),
+                *(f"--pref={key}={value}" for key, value in (kitsune_firefox_prefs or {}).items())],
+                "firefox.log", "browser_launcher")
             await_bridge(http_port, env["KITSUNE_TOKEN"], browser, extension=True)
         resources.set_phase("ready")
         time.sleep(1)

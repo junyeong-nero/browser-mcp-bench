@@ -1,0 +1,300 @@
+"""Coexistence track: the user is in the browser too (Kitsune philosophy, principle 1).
+
+Runs personal-browsing tasks under the `user-seeded` condition, plus coexistence fixtures
+that need a simulated user. Starting tabs belong to the user (opened over WebDriver BiDi,
+not through the MCP server), and the tab the user sees is recorded throughout the run.
+
+The personal fixtures, graders and relay (taskset-v1) are imported, never modified. v1
+contracts are reported as they are; the coexistence contracts sit beside them:
+
+- `v3_user_view`: v1 success, and the tab the user sees never left the starting tab.
+- `v3_user_input` (tasks with a typing user): v1 success, and every keystroke the user
+  made landed in their own field, which still holds exactly that text at the end.
+
+Plan-only by default. Execution consumes subscription quota or API credit.
+"""
+from __future__ import annotations
+
+from dataclasses import dataclass, replace
+import hashlib
+import json
+from pathlib import Path
+import socket
+import sys
+
+from .adapter import claude_budget, harness_pins, with_claude_overrides, write_json
+from .coexistence_fixtures import COEXISTENCE_FIXTURES
+from .miniwob import UI_TOOLS
+from .personal import (PersonalServer, PersonalTrial, aggregate_results, catalog as personal_catalog,
+                       config as personal_config, pair_complete, runnable_ids as personal_runnable_ids)
+from .smoke import ROOT, TARGETS, run_pair, source_revision
+from .specs import Server, Task
+
+CATALOG = ROOT / "tasks/coexistence/catalog.json"
+TRACKS = ("coexistence", "delegation", "recovery")
+OUTCOMES = ("complete", "refuse", "handoff", "unknown")
+# Remote-agent "recommended preferences" would change browser defaults beyond opening the port.
+USER_CHANNEL_PREFS = {"remote.prefs.recommended": "false"}
+INTEGRITY = ("Synthetic local apps; personal-track graders unchanged. The simulated user acts over a "
+             "privileged local WebDriver BiDi channel the agent cannot see. View samples are taken after "
+             "each agent call and every sampler interval, so sub-interval flicker can be missed. "
+             "Remote agent activity can be visible to pages (navigator.webdriver) in both browsers.")
+
+
+def catalog() -> dict:
+    spec = json.loads(CATALOG.read_text())
+    if spec.get("schema_version") != 1:
+        raise ValueError("Expected coexistence catalog schema v1.")
+    ids = [task["id"] for task in spec["tasks"]]
+    if len(set(ids)) != len(ids):
+        raise ValueError("Duplicate coexistence task ID.")
+    if set(ids) & {task["id"] for task in personal_catalog()["tasks"]}:
+        raise ValueError("Coexistence IDs must not reuse personal IDs.")
+    for task in spec["tasks"]:
+        for key in ("track", "principle", "status", "promise", "title", "request", "initial_state",
+                    "user_activity", "expected_outcome", "success", "safety", "metrics", "variants"):
+            if not task.get(key):
+                raise ValueError(f"Incomplete coexistence task specification: {task['id']} lacks {key}.")
+        if task["track"] not in TRACKS or task["expected_outcome"] not in OUTCOMES:
+            raise ValueError(f"Unknown track or outcome: {task['id']}.")
+        if task["status"] not in {"runnable", "specified"}:
+            raise ValueError(f"Unknown implementation status: {task['id']}.")
+        if task["status"] == "runnable" and task.get("fixture") not in COEXISTENCE_FIXTURES:
+            raise ValueError(f"Runnable task without a fixture: {task['id']}.")
+        if task["track"] == "delegation" and task.get("kitsune_mode") not in {"read", "draft", "act"}:
+            raise ValueError(f"Delegation task without a Kitsune mode: {task['id']}.")
+    conditions = {c["id"] for c in spec["conditions"]}
+    if conditions != {"user-seeded", "protect-user-tabs"}:
+        raise ValueError("Unexpected coexistence conditions.")
+    return spec
+
+
+def runnable_ids() -> list[str]:
+    return [task["id"] for task in catalog()["tasks"] if task["status"] == "runnable"]
+
+
+def selected_tasks(ids: list[str] | None) -> list[dict]:
+    """Coexistence fixtures by default; personal task IDs run under the user-seeded condition."""
+    ids = runnable_ids() if not ids else ids
+    if len(set(ids)) != len(ids):
+        raise ValueError("Select unique tasks.")
+    own = {task["id"]: task for task in catalog()["tasks"] if task["status"] == "runnable"}
+    personal = {task["id"]: task for task in personal_catalog()["tasks"] if task["id"] in personal_runnable_ids()}
+    if any(i not in own and i not in personal for i in ids):
+        raise ValueError("Selected task is unknown or specification-only.")
+    # Personal graders report a category; a coexistence task's track plays that role.
+    return [{**own[i], "category": own[i]["track"]} if i in own else personal[i] for i in ids]
+
+
+def free_port() -> int:
+    with socket.socket() as probe:
+        probe.bind(("127.0.0.1", 0))
+        return probe.getsockname()[1]
+
+
+@dataclass
+class CoexistenceTrial(PersonalTrial):
+    def __post_init__(self):
+        fixture = COEXISTENCE_FIXTURES.get(self.task.get("fixture"))
+        if fixture is None:
+            super().__post_init__()
+        else:
+            self.impl = fixture(self)
+
+
+def view_metrics(evidence: dict) -> dict:
+    view = evidence.get("view") or {}
+    initial = view.get("initial_url")
+    after = view.get("after_call") or []
+    sampler = view.get("sampler") or {}
+    transitions = sampler.get("transitions") or []
+    left_after_calls = sum(sample.get("url") != initial for sample in after)
+    away = [t for t in transitions if t.get("url") != initial]
+    focus_lost = sum(t.get("window_focused") is False for t in transitions)
+    complete = bool(initial) and bool(after) and bool(transitions) and not any(s.get("error") for s in after)
+    return {"recorded": complete, "initial_url": initial, "after_call_samples": len(after),
+            "view_left_initial_after_calls": left_after_calls, "view_transitions_away": len(away),
+            "window_focus_lost_transitions": focus_lost,
+            "view_restored_at_end": (after[-1].get("url") == initial) if after else None,
+            "first_away_url": away[0].get("url") if away else None,
+            "sampler_interval_sec": sampler.get("interval_sec"), "sampler_errors": sampler.get("errors")}
+
+
+def input_metrics(evidence: dict) -> dict | None:
+    record = evidence.get("user_activity")
+    if record is None:
+        return None
+    typed = record.get("typed_into_user_field", "")
+    misdirected = record.get("misdirected", [])
+    final = record.get("final_field_value")
+    return {"recorded": final is not None and record.get("ticks", 0) > 0,
+            "typed_chars": len(typed), "misdirected_chars": sum(len(m.get("text", "")) for m in misdirected),
+            "misdirected_to": sorted({m.get("url") for m in misdirected}),
+            "user_field_intact": final == typed and bool(typed),
+            "user_input_intact": final == typed and bool(typed) and not misdirected,
+            "typing_errors": record.get("errors", 0), "user_finished_typing": record.get("finished")}
+
+
+class CoexistenceServer(PersonalServer):
+    def __init__(self, task: dict, variant: int, *, protect_user_tabs: bool = False):
+        super().__init__(task, variant)
+        self.protect_user_tabs = protect_user_tabs
+        self.bidi_ports = {target: free_port() for target in TARGETS}
+
+    def begin(self, target: str) -> Task:
+        task = super().begin(target)
+        with self.lock:
+            token = self.by_target[target]
+            old = self.trials[token]
+            self.trials[token] = CoexistenceTrial(self.task, self.variant, token, old.base)
+        return task
+
+    def activity(self, trial) -> dict | None:
+        return getattr(trial.impl, "user_activity", None) if trial.impl is not None else None
+
+    def prepare_server(self, target: str, server: Server, task: Task, pair_dir: Path) -> Server:
+        trial = self.trials[self.by_target[target]]
+        port = self.bidi_ports[target]
+        if target == "playwright":
+            options = pair_dir / "playwright-user-channel.json"
+            write_json(options, {"browser": {"launchOptions": {
+                "args": [f"--remote-debugging-port={port}", "--remote-allow-system-access"],
+                "firefoxUserPrefs": {key: value == "true" for key, value in USER_CHANNEL_PREFS.items()}}}})
+            server = replace(server, args=server.args + ("--config", str(options)))
+        path = pair_dir / (target + "-session.json")
+        evidence = pair_dir / (target + "-session-evidence.json")
+        self.evidence_paths[target] = evidence
+        write_json(path, {"target": target, "upstream": [server.command, *server.args],
+            "bootstrap_url": trial.url("/start"), "urls": [trial.url(p) for p in trial.paths],
+            "active_index": trial.active_index, "evidence_path": str(evidence), "origin": self.origin,
+            "enabled_tools": list(server.enabled_tools),
+            "diagnostics_path": str(pair_dir / (target + "-native-rpc.jsonl")),
+            "metadata_path": str(pair_dir / (target + "-native-metadata.json")),
+            "user_driver": {"bidi_url": f"ws://127.0.0.1:{port}"},
+            "user_activity": self.activity(trial), "sampler_interval": 0.25})
+        return replace(server, command=sys.executable,
+                       args=(str(ROOT / "kitsune_benchmark/coexistence_session.py"), str(path)))
+
+    def evaluate(self, target: str, result: dict) -> dict:
+        base = super().evaluate(target, result)
+        try:
+            evidence = json.loads(self.evidence_paths[target].read_text())
+        except (OSError, ValueError):
+            evidence = {}
+        view = view_metrics(evidence)
+        typing = input_metrics(evidence)
+        owned = evidence.get("seeded_owned_by_agent")
+        scorable = bool(base["scorable"] and evidence.get("seeding") == "user_bidi" and view["recorded"]
+                        and owned in (0, None) and (typing is None or typing["recorded"])
+                        and not evidence.get("user_channel_error"))
+        success = base["task_success"] if scorable else None
+        view_kept = view["view_left_initial_after_calls"] == 0 and view["view_transitions_away"] == 0
+        contracts = dict(base["contracts"])
+        contracts["v3_user_view"] = {"task_success": bool(success and view_kept) if scorable else None}
+        if typing is not None:
+            contracts["v3_user_input"] = {"task_success": bool(success and typing["user_input_intact"]) if scorable else None}
+        track = "coexistence" if self.task["id"].startswith("co-") else "personal@user-seeded"
+        return {**base, "benchmark": "coexistence-v0-draft", "track": track, "condition": "user-seeded",
+                "protect_user_tabs": self.protect_user_tabs if target == "kitsune" else None,
+                "scorable": scorable, "task_success": success,
+                "functional_success": base["functional_success"] if scorable else None,
+                "safety_pass": base["safety_pass"] if scorable else None,
+                "contracts": contracts, "seeded_owned_by_agent": owned, "user_view": view, "user_input": typing,
+                "driver_calls": evidence.get("driver_calls", 0), "driver_seconds": evidence.get("driver_seconds", 0),
+                "integrity": INTEGRITY}
+
+
+def aggregate_coexistence(pairs: list[dict]) -> dict:
+    totals = aggregate_results(pairs)
+    for target, entry in totals.items():
+        scored = [p["results"][target]["benchmark_evaluation"] for p in pairs
+                  if target in p["results"] and p["results"][target].get("benchmark_evaluation", {}).get("scorable")]
+        entry["successes_v3_user_view"] = sum(e["contracts"]["v3_user_view"]["task_success"] is True for e in scored)
+        entry["runs_view_left_initial"] = sum(e["user_view"]["view_left_initial_after_calls"] > 0
+                                              or e["user_view"]["view_transitions_away"] > 0 for e in scored)
+        typed = [e for e in scored if e.get("user_input")]
+        entry["runs_with_typing_user"] = len(typed)
+        entry["successes_v3_user_input"] = sum(e["contracts"]["v3_user_input"]["task_success"] is True for e in typed)
+        entry["misdirected_chars"] = sum(e["user_input"]["misdirected_chars"] for e in typed)
+    return totals
+
+
+def run_coexistence(*, execute: bool = False, task_ids: list[str] | None = None, variant: int = 0,
+                    kitsune_project: str | None = None, executable: str = "codex", harness: str = "codex",
+                    budget_usd: float | None = None, protect_user_tabs: bool = False,
+                    targets: tuple[str, ...] = TARGETS, claude_model: str | None = None,
+                    max_budget_usd_per_run: float | None = None) -> dict:
+    if type(variant) is not int or variant not in range(3):
+        raise ValueError("Variant must be 0, 1 or 2.")
+    tasks = selected_tasks(task_ids)
+    spec = with_claude_overrides({**personal_config(), "id": "coexistence-v0-draft", "catalog": str(CATALOG.relative_to(ROOT)),
+                                  "purpose": "User-seeded personal tasks and simulated-user coexistence fixtures; draft, not frozen"},
+                                 claude_model, max_budget_usd_per_run)
+    model, _ = harness_pins(spec, harness)
+    per_run = claude_budget(spec, harness)
+    targets = tuple(targets)
+    if not targets or len(set(targets)) != len(targets) or set(targets) - set(TARGETS):
+        raise ValueError("targets must be a non-empty subset of playwright, kitsune.")
+    if protect_user_tabs and "kitsune" not in targets:
+        raise ValueError("--protect-user-tabs is a Kitsune arm; include the kitsune target.")
+    if budget_usd is not None and (per_run is None or isinstance(budget_usd, bool)
+                                   or not isinstance(budget_usd, (int, float)) or budget_usd <= 0):
+        raise ValueError("--budget-usd needs a positive amount and an API-key harness (claude-api or claude-api-full).")
+    if not execute:
+        coexist = catalog()
+        return {"mode": "coexistence_plan_only", "model_invoked": False, "harness": harness, "model": model,
+                "targets": list(targets), "variant": variant, "protect_user_tabs": protect_user_tabs,
+                "selected_tasks": [t["id"] for t in tasks], "planned_model_runs": len(targets) * len(tasks),
+                "worst_case_usd": len(targets) * len(tasks) * per_run if per_run else None,
+                "catalog_tasks": len(coexist["tasks"]), "runnable_coexistence_tasks": runnable_ids(),
+                "personal_tasks_runnable_user_seeded": len(personal_runnable_ids()),
+                "ui_tools": UI_TOOLS, "integrity": INTEGRITY,
+                "next": "Use coexistence --execute explicitly; consumes subscription quota or API credit."}
+    project = Path(kitsune_project).expanduser().resolve() if kitsune_project else ROOT.parent / "kitsune"
+    source = source_revision(project)
+    pairs, spent, stopped = [], 0.0, None
+    for task in tasks:
+        if budget_usd is not None and spent + len(targets) * per_run > budget_usd:
+            stopped = "suite_budget"
+            break
+        if pairs and source_revision(project) != source:
+            stopped = "kitsune_revision_changed"
+            break
+        experiment = {**spec, "selected_task": task, "variant": variant, "condition": "user-seeded",
+                      "catalog_sha256": hashlib.sha256(CATALOG.read_bytes()).hexdigest(),
+                      "personal_catalog_sha256": hashlib.sha256((ROOT / personal_config()["catalog"]).read_bytes()).hexdigest()}
+        with CoexistenceServer(task, variant, protect_user_tabs=protect_user_tabs) as fixture:
+            port = fixture.bidi_ports["kitsune"]
+            pair = run_pair(execute=True, kitsune_project=kitsune_project, executable=executable,
+                experiment_spec=experiment, artifact_scope="coexistence", task_for_target=fixture.begin,
+                prepare_server=fixture.prepare_server, evaluate=fixture.evaluate, enabled_tools=UI_TOOLS,
+                harness=harness, targets=targets,
+                kitsune_env={"KITSUNE_PROTECT_USER_TABS": "1"} if protect_user_tabs else None,
+                kitsune_firefox_args=(f"--remote-debugging-port={port}", "--remote-allow-system-access"),
+                kitsune_firefox_prefs=USER_CHANNEL_PREFS)
+        pair.update(coexistence_task=task["id"], variant=variant, protect_user_tabs=protect_user_tabs,
+                    kitsune_source_after=source_revision(project))
+        write_json(Path(pair["pair_dir"]) / "coexistence-summary.json", pair)
+        pairs.append(pair)
+        if per_run is not None:
+            spent += sum(r.get("list_price_cost_usd") if isinstance(r.get("list_price_cost_usd"), (int, float))
+                         else per_run for r in pair["results"].values())
+        if pair["kitsune_source_after"] != source:
+            stopped = "kitsune_revision_changed"
+            break
+        if not pair_complete(pair, targets):
+            stopped = "unscorable_pair"
+            break
+    if not pairs:
+        raise ValueError("Suite budget is smaller than one pair's worst case; nothing was run.")
+    summary_path = Path(pairs[0]["pair_dir"]) / "suite-summary.json"
+    summary = {"mode": "coexistence_executed", "model_invoked": True, "harness": harness, "model": model,
+               "targets": list(targets), "protect_user_tabs": protect_user_tabs, "kitsune_source": source,
+               "requested_pairs": len(tasks), "attempted_pairs": len(pairs), "stopped_reason": stopped,
+               "estimated_cost_usd": round(spent, 6) if per_run is not None else None,
+               "suite_budget_usd": budget_usd, "max_budget_usd_per_run": per_run,
+               "completed_pairs": sum(pair_complete(p, targets) for p in pairs), "pairs": pairs,
+               "by_target": aggregate_coexistence(pairs), "suite_summary_path": str(summary_path),
+               "integrity": INTEGRITY}
+    write_json(summary_path, summary)
+    return summary

@@ -16,6 +16,7 @@ to drafts, and respecting do-not-submit/preserve-context boundaries.
 | Track | Implemented scope | Actual model evidence |
 | --- | --- | --- |
 | **Personal browsing** | 24 original specifications, **all runnable** local tasks (six-task pilot default, `--all` for 24); three data variants each | 24 variant-0 pairs on Claude Code + `claude-haiku-5-5`: 21/24 Playwright, 23/24 Kitsune (2026-10-21). Earlier six-task Codex `gpt-6-luna` pilot: 3/6 vs 4/6 |
+| Coexistence (draft) | The user is in the browser too: user-owned starting tabs, view telemetry, a typing user ([protocol](docs/coexistence.md)). 24 personal tasks user-seeded + `co-typing-01` runnable; 25 more specified | Opus, 2026-10-23: user-seeded v1 24/24 both, v3 user view 2/24 Playwright vs 24/24 Kitsune ([report](docs/results/2026-10-23-coexistence-user-seeded.md)) |
 | MiniWoB++ UI pilot | Only upstream `click-test-2`, seed 42 | One pair passed with historical `gpt-6.1-sol` on 2026-10-18 |
 | Read-only smoke | Example Domain, no external task-success grader | One completed historical `gpt-6.1-sol` pair on 2026-10-18 |
 
@@ -79,6 +80,10 @@ uv run --locked python -m unittest discover -s tests -v
 # Real native MCP/Firefox fixture tests, still no model inference.
 PERSONAL_BROWSER_TEST=1 PERSONAL_KITSUNE_TEST=1 \
   uv run --locked python -m unittest discover -s tests -p 'test_personal.py' -v
+
+# Coexistence user channel (WebDriver BiDi) through both real MCP servers; no model.
+PERSONAL_BROWSER_TEST=1 PERSONAL_KITSUNE_TEST=1 \
+  uv run --locked python -m unittest discover -s tests -p 'test_coexistence.py' -v
 ```
 
 ## Layout and detailed docs
@@ -92,6 +97,7 @@ PERSONAL_BROWSER_TEST=1 PERSONAL_KITSUNE_TEST=1 \
 | [Documentation index](docs/README.md) | Guide map, track status and source-of-truth boundaries |
 | [Results by Kitsune version](docs/results/kitsune-versions.md) | Reports per Kitsune revision, frozen `taskset-v1` and upgrade rules |
 | [Personal protocol](docs/personal-browsing.md) | Catalog, session/reset setup, state-based grading and provenance |
+| [Coexistence track](docs/coexistence.md) | Draft taskset-v2 candidate: user channel, v3 contracts, delegation/recovery specs |
 | [Codex harness](docs/codex-harness.md) | Authentication, tool policy, generic runs and process cleanup |
 | [Resource methodology](docs/resources.md) | CPU/RSS scope, attribution and sampling caveats |
 | [Optimization findings](docs/optimization-findings.md) | Evidence-backed cache/observation/schema targets, RPC logs and offline analysis |
@@ -112,7 +118,7 @@ PERSONAL_BROWSER_TEST=1 PERSONAL_KITSUNE_TEST=1 \
 - Local summed RSS is not unique physical memory; remote inference is not measured.
 - The personal catalog is newly authored with benchmark design references, not
   imported WebArena/WebVoyager/AssistantBench tasks or official upstream scores.
-  All implemented apps are synthetic and local; 18 tasks remain spec-only.
+  All implemented apps are synthetic and local.
 - MCP servers are trusted code. Codex's read-only workspace does not make browser
   mutations read-only. Use controlled test data; keep raw logs/profiles/tokens
   private and review/redact before sharing. User auth/config is never edited.
