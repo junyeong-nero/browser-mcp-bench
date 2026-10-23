@@ -52,9 +52,8 @@ Rules:
   `--max-budget-usd-per-run`); report them, and compare versions only at the same
   model.
 - Each report names its taskset tag next to the Kitsune revision.
-- A full-suite run on one Kitsune revision is an **observation**. Under the
-  [workflow](https://github.com/junyeong-nero/kitsune/blob/main/docs/workflow.md) it can motivate a `hypothesis` issue but is not that
-  hypothesis's baseline: baseline and candidate are re-run together on the same
+- A full-suite run on one Kitsune revision is an **observation**. It can
+  motivate a `hypothesis` issue but is not that hypothesis's baseline: baseline and candidate are re-run together on the same
   taskset tag, model, attempts and counterbalanced order. A reproducible Kitsune
   failure (same task failing on every variant) is filed as a Kitsune `bug`, and a
   grader or fixture defect as a taskset change here.
