@@ -24,17 +24,16 @@ from .adapter import with_claude_overrides
 from .smoke import ROOT, run_pair
 from .specs import Task
 
-UI_TOOLS = {
-    "playwright": ("browser_tabs", "browser_navigate", "browser_navigate_back", "browser_snapshot",
-        "browser_click", "browser_type", "browser_fill_form", "browser_press_key",
-        "browser_select_option", "browser_wait_for", "browser_take_screenshot", "browser_hover",
-        "browser_drag", "browser_handle_dialog", "browser_resize"),
-    "kitsune": ("browser_status", "browser_tabs", "browser_page_info", "browser_page_text",
-        "browser_forms", "browser_dom", "browser_snapshot", "browser_screenshot", "browser_navigate",
-        "browser_click", "browser_type", "browser_scroll", "browser_hover", "browser_find",
-        "browser_select_option", "browser_check", "browser_focus", "browser_keypress",
-        "browser_double_click", "browser_submit_form", "browser_form_fill", "browser_drag"),
-}
+# taskset-v1.2: Kitsune v0.3.1 publishes Playwright MCP 0.0.83's 25 default tools under the same names, so both
+# targets get that set minus the two code-execution tools (browser_evaluate, browser_run_code_unsafe), which
+# could rewrite page state or rewards. browser_emulate_media answers not_supported on Kitsune.
+CORE_TOOLS = ("browser_close", "browser_resize", "browser_console_messages", "browser_handle_dialog",
+    "browser_emulate_media", "browser_file_upload", "browser_drop", "browser_find",
+    "browser_fill_form", "browser_press_key", "browser_type", "browser_navigate", "browser_navigate_back",
+    "browser_network_requests", "browser_network_request", "browser_take_screenshot",
+    "browser_snapshot", "browser_click", "browser_drag", "browser_hover", "browser_select_option",
+    "browser_tabs", "browser_wait_for")
+UI_TOOLS = {"playwright": CORE_TOOLS, "kitsune": CORE_TOOLS}
 
 
 def config() -> dict:

@@ -405,11 +405,12 @@ class NativeKitsuneTests(unittest.TestCase):
                         path = {"article": "/article", "products": "/compare", "policy": "/search", "orders": "/orders",
                                 "calendar": "/calendar", "contact": "/contact"}[task["fixture"]]
                         tab = next(t for t in session.inventory() if t["url"] == trial.url(path))
-                        session.tool("browser_tabs", {"action": "select", "tab_id": tab["id"]})
+                        # Kitsune >= 0.3.1 publishes Playwright MCP's core tools: index-addressed tabs, `target`.
+                        session.tool("browser_tabs", {"action": "select", "index": tab["id"]})
                         values = trial.expected if draft else {"메모": trial.expected["answer"]}
                         for label, value in values.items():
-                            session.tool("browser_type", {"selector": f'input[name="{label}"]', "mode": "fill", "text": value})
-                        session.tool("browser_click", {"selector": "form > button:first-of-type"})
+                            session.tool("browser_type", {"target": f'input[name="{label}"]', "text": value})
+                        session.tool("browser_click", {"target": "form > button:first-of-type"})
                         session.evidence["snapshots"].append(session.inventory())
                         evaluation = trial.evaluate({"execution_status": "completed_unscored"}, session.evidence)
                         self.assertTrue(evaluation["task_success"], evaluation)

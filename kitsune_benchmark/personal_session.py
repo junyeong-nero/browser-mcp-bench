@@ -43,7 +43,11 @@ def tabs_from_result(target: str, result: dict) -> list[dict]:
                         break
                 except ValueError:
                     continue
-        tabs = [{"id": tab["id"], "active": tab["active"], "title": tab.get("title", ""), "url": tab["url"]}
+        # Kitsune >= 0.3.1 mirrors Playwright's browser_tabs: index-addressed, and `current` (the tab its tools
+        # act on) plays the role of Playwright's "(current)" marker. Older Kitsune lists tab ids and `active`.
+        tabs = [{"id": tab["index"], "active": bool(tab.get("current")), "title": tab.get("title") or "",
+                 "url": tab["url"]} if "index" in tab else
+                {"id": tab["id"], "active": tab["active"], "title": tab.get("title", ""), "url": tab["url"]}
                 for tab in data["tabs"]] if data else []
     else:
         raise ValueError("Unknown MCP target.")
@@ -60,6 +64,7 @@ class NativeSession:
         self.process = None
         self.pending = queue.Queue()
         self.serial = 0
+        self.tab_indexed = False
         self.started_mono = time.monotonic()
         self.metadata = {"enabled_tools": config.get("enabled_tools", []), "tools_pages": []}
         self.evidence = {"setup_complete": False, "initial_tabs": [], "snapshots": [],
@@ -164,7 +169,10 @@ class NativeSession:
             self.evidence["harness_seconds"] += time.monotonic() - started
 
     def inventory(self) -> list[dict]:
-        return tabs_from_result(self.config["target"], self.tool("browser_tabs", {"action": "list"}))
+        result = self.tool("browser_tabs", {"action": "list"})
+        texts = [item.get("text", "") for item in result.get("content", []) if item.get("type") == "text"]
+        self.tab_indexed = '"index"' in json.dumps(result.get("structuredContent")) + "".join(texts)
+        return tabs_from_result(self.config["target"], result)
 
     def wait_inventory(self, predicate, timeout: float = 10) -> list[dict]:
         deadline = time.monotonic() + timeout
@@ -203,7 +211,7 @@ class NativeSession:
         chosen = [tab for tab in tabs if tab["url"] == desired]
         if len(chosen) != 1 or sorted(t["url"] for t in tabs) != sorted(self.config["urls"]):
             raise ValueError("Session seed URLs differ from specification.")
-        field = "index" if self.config["target"] == "playwright" else "tab_id"
+        field = "index" if self.config["target"] == "playwright" or self.tab_indexed else "tab_id"
         self.tool("browser_tabs", {"action": "select", field: chosen[0]["id"]})
         tabs = self.wait_inventory(lambda tabs: any(tab["url"] == desired and tab["active"] for tab in tabs))
         if not any(tab["url"] == desired and tab["active"] for tab in tabs):

@@ -26,7 +26,8 @@ git tags of this repository:
 | Tag | Change | Reports |
 | --- | --- | --- |
 | `taskset-v1` (`f1ff9fa`) | First freeze | 2026-10-23 Opus full suite |
-| **`taskset-v1.1`** (current) | Requests of `pb-research-02` (both evidence links) and `pb-account-03` (overlapping titles only) now state what their graders check. Graders, fixtures and gallery unchanged | None yet |
+| `taskset-v1.1` | Requests of `pb-research-02` (both evidence links) and `pb-account-03` (overlapping titles only) now state what their graders check. Graders, fixtures and gallery unchanged | None |
+| **`taskset-v1.2`** (current) | Harness only, for Kitsune v0.3.1's Playwright-named core tools: both targets get the same allowlist, Playwright MCP 0.0.83's 25 default tools minus `browser_evaluate` and `browser_run_code_unsafe` (23). Setup reads Kitsune's index-addressed `browser_tabs` (`current` = Playwright's `(current)`). Tasks, graders and fixtures as v1.1 | Opus full suite on v0.3.1 |
 
 Earlier reports predate the tags and ran on earlier task/grader code. Scores on
 v1 and v1.1 are not compared directly: the two personal tasks changed their
