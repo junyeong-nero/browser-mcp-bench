@@ -64,33 +64,41 @@ These are **agent run counts**, not LLM turn counts, token caps or prices. One
 agent run can contain many model/tool interactions. There is no `full-test`
 command that automatically executes every upstream benchmark.
 
-### Alternative harness: Claude Code
+### Default harness: Claude Code on the subscription
 
-`smoke`, `benchmark`, `personal` and `doctor` accept `--harness claude`
-(executable via `--claude PATH`). This runs **Claude Code `2.1.303`** with the
-model/effort from each config's `claude_code` block (currently
-`claude-haiku-5-5`, effort `medium`) on the existing **claude.ai subscription
-login**; `ANTHROPIC_*`/provider variables are never inherited.
+`smoke`, `benchmark`, `personal`, `gallery`, `coexistence`, `doctor` and
+`scripts/run-full-suite.py` default to **`--harness claude`**. It runs **Claude Code
+`2.1.303`** on the existing **claude.ai subscription login**, with the model/effort
+from each config's `claude_code` block (`--claude-model` overrides it). Usage
+counts against the plan's limits, **not API credit**, and there is no dollar cap.
+`ANTHROPIC_*`/provider variables are never inherited, so the `.env` key is not used.
 
 ```sh
-uv run --locked python -m kitsune_benchmark doctor --harness claude
-uv run --locked python -m kitsune_benchmark personal --harness claude --execute
+uv run --locked python -m kitsune_benchmark doctor          # checks the claude.ai login, no inference
+uv run --locked python -m kitsune_benchmark personal --claude-model claude-opus-5-5 --execute
 ```
 
-**API-key billing (`--harness claude-api`).** Same Claude Code isolation, but
-authenticated only by `ANTHROPIC_API_KEY` from the repository `.env` (see
-`.env.example`), with `--bare` so OAuth/keychain credentials are never read.
-Inherited `ANTHROPIC_*` variables are still ignored. User keys (`sk-ant-usr…`)
-also need a workspace: `ANTHROPIC_WORKSPACE_ID` in `.env`, or the key's only
-active workspace. Each run is capped by Claude Code `--max-budget-usd`
+Without `--bare` (which would disable the subscription login), Claude Code sends
+each MCP tool description in full. Reports up to 2026-10-24 used `--harness claude-api`
+(`--bare`, first paragraph only), so subscription runs are a **separate cohort**:
+compare versions within one harness, never across. `--harness codex` (ChatGPT login)
+remains available.
+
+**API-key billing is opt-in (`--harness claude-api`, `claude-api-full`).** These
+spend `ANTHROPIC_API_KEY` credit from the repository `.env` and refuse to execute
+without **`--allow-api-billing`**. Same Claude Code isolation, authenticated only by
+that key, with `--bare` so OAuth/keychain credentials are never read. User keys
+(`sk-ant-usr…`) also need a workspace: `ANTHROPIC_WORKSPACE_ID` in `.env`, or the
+key's only active workspace. Each run is capped by Claude Code `--max-budget-usd`
 (`claude_code.max_budget_usd_per_run`, 0.5 by default) and the audit requires
 `apiKeySource: ANTHROPIC_API_KEY`. `--budget-usd` stops before any pair whose
-worst case would exceed the suite total. `doctor` validates the key, workspace
-and model with free `GET` requests; it never runs inference.
+worst case would exceed the suite total. `doctor --harness claude-api` validates
+the key, workspace and model with free `GET` requests.
 
 ```sh
 uv run --locked python -m kitsune_benchmark doctor --harness claude-api
-uv run --locked python -m kitsune_benchmark personal --harness claude-api --all --budget-usd 30 --execute
+uv run --locked python -m kitsune_benchmark personal --harness claude-api --allow-api-billing \
+  --all --budget-usd 30 --execute
 ```
 
 `total_cost_usd` is Claude Code's client-side estimate; the Console usage page is
@@ -118,8 +126,12 @@ bridge or browser. `scripts/analyze-per-tool.py <out>` compares the two targets
 tool by tool (calls, errors, latency, response size, grouped error texts).
 
 ```sh
-uv run --locked python scripts/run-full-suite.py --model claude-opus-5-5 --budget-usd 100 \
-  --max-budget-usd-per-run 5 --kitsune-project artifacts/vendor/kitsune-pinned --out artifacts/opus-full
+# Subscription (default): no API credit, no dollar cap.
+uv run --locked python scripts/run-full-suite.py --model claude-opus-5-5 \
+  --kitsune-project artifacts/vendor/kitsune-pinned --out artifacts/opus-full
+# API credit, explicitly:
+uv run --locked python scripts/run-full-suite.py --harness claude-api --allow-api-billing --model claude-opus-5-5 \
+  --budget-usd 100 --max-budget-usd-per-run 5 --kitsune-project artifacts/vendor/kitsune-pinned --out artifacts/opus-full
 ```
 
 **A/B arms and a pinned Kitsune checkout.**
@@ -127,9 +139,8 @@ uv run --locked python scripts/run-full-suite.py --model claude-opus-5-5 --budge
 ```sh
 # A dedicated clone, so other work in ../kitsune cannot move it mid-suite.
 git clone https://github.com/junyeong-nero/kitsune.git artifacts/vendor/kitsune-pinned
-uv run --locked python -m kitsune_benchmark personal --harness claude-api --all \
-  --kitsune-project artifacts/vendor/kitsune-pinned --targets kitsune \
-  --kitsune-preset lean --budget-usd 10 --execute
+uv run --locked python -m kitsune_benchmark personal --all \
+  --kitsune-project artifacts/vendor/kitsune-pinned --targets kitsune --execute
 ```
 
 `--targets` selects which MCPs run (default `playwright,kitsune`). `--kitsune-preset`
@@ -143,7 +154,7 @@ and `--targets` to pick MCPs. Live sites change, so judge results from the trace
 screenshots, and never treat them as benchmark scores.
 
 ```sh
-uv run --locked python -m kitsune_benchmark smoke --harness claude-api \
+uv run --locked python -m kitsune_benchmark smoke \
   --task tasks/live/steam-goty-2025-negative-100h.json --ui-tools --targets kitsune \
   --kitsune-project artifacts/vendor/kitsune-pinned --timeout 300 --execute
 ```
@@ -201,7 +212,7 @@ uv run --locked python -m kitsune_benchmark smoke --execute
 
 # Draft coexistence track (docs/coexistence.md): plan, then the typing-user fixture pair.
 uv run --locked python -m kitsune_benchmark coexistence
-uv run --locked python -m kitsune_benchmark coexistence --harness claude-api --execute
+uv run --locked python -m kitsune_benchmark coexistence --execute
 
 # MiniWoB source fetch only: network/download, but no model inference.
 uv run --locked python -m kitsune_benchmark benchmark --fetch

@@ -6,7 +6,7 @@ import argparse
 import json
 import subprocess
 
-from .adapter import HARNESSES, plan, run, with_claude_overrides
+from .adapter import API_HARNESSES, HARNESSES, plan, run, with_claude_overrides
 from . import claude_harness
 from .doctor import diagnose
 from .specs import load_server, load_task
@@ -26,7 +26,7 @@ def main(argv: list[str] | None = None) -> int:
     doctor.add_argument("--codex", default="codex", help="Codex executable name or path")
     doctor.add_argument("--codex-home", help="Existing Codex home to check; no credentials are copied")
     doctor.add_argument("--json", action="store_true", help="Print machine-readable diagnostics")
-    doctor.add_argument("--harness", choices=HARNESSES, default="codex")
+    doctor.add_argument("--harness", choices=HARNESSES, default="claude")
     doctor.add_argument("--claude", default="claude", help="Claude Code executable name or path")
     for name in ("plan", "run"):
         child = subparsers.add_parser(name, help=(
@@ -93,10 +93,13 @@ def main(argv: list[str] | None = None) -> int:
     coexistence.add_argument("--targets", default="playwright,kitsune")
     coexistence.add_argument("--budget-usd", type=float)
     for child in (smoke, benchmark, personal, gallery, coexistence):
-        child.add_argument("--harness", choices=HARNESSES, default="codex",
-                           help="Agent CLI: codex (ChatGPT login), claude (Claude Code, claude.ai login) "
-                                "claude-api (Claude Code --bare, ANTHROPIC_API_KEY from .env; billed per token) "
-                                "or claude-api-full (same key, no --bare: full tool descriptions)")
+        child.add_argument("--harness", choices=HARNESSES, default="claude",
+                           help="Agent CLI. Default claude (Claude Code on the claude.ai subscription login; "
+                                "no API credit). codex (ChatGPT login). claude-api (Claude Code --bare, "
+                                "ANTHROPIC_API_KEY from .env; billed per token) or claude-api-full (same key, no "
+                                "--bare: full tool descriptions); both need --allow-api-billing to execute")
+        child.add_argument("--allow-api-billing", action="store_true",
+                           help="Confirm that an API-key harness may spend ANTHROPIC_API_KEY credit")
         child.add_argument("--claude", default="claude", help="Claude Code executable name or path")
         child.add_argument("--claude-model", help="Claude harnesses only: override the config's claude_code.model "
                            "(e.g. claude-opus-5-5); the override is recorded in each run's manifest")
@@ -110,6 +113,10 @@ def main(argv: list[str] | None = None) -> int:
                  "max_budget_usd_per_run": getattr(args, "max_budget_usd_per_run", None)}
     if args.command != "doctor" and not claude and any(value is not None for value in overrides.values()):
         parser.error("--claude-model/--max-budget-usd-per-run need a Claude harness (--harness claude*).")
+    if (getattr(args, "execute", False) and getattr(args, "harness", None) in API_HARNESSES
+            and not args.allow_api_billing):
+        parser.error(f"--harness {args.harness} bills API credit (ANTHROPIC_API_KEY). The default --harness claude "
+                     "uses the claude.ai subscription; pass --allow-api-billing to spend API credit deliberately.")
     try:
         if args.command == "doctor":
             if claude:

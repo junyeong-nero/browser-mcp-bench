@@ -20,10 +20,9 @@ to drafts, and respecting do-not-submit/preserve-context boundaries.
 | MiniWoB++ UI pilot | Only upstream `click-test-2`, seed 42 | One pair passed with historical `gpt-6.1-sol` on 2026-10-18 |
 | Read-only smoke | Example Domain, no external task-success grader | One completed historical `gpt-6.1-sol` pair on 2026-10-18 |
 
-Current configs request **`gpt-6-luna`, reasoning `medium`, Codex CLI `0.163.0`**.
-Execution uses the existing **ChatGPT subscription login**, not a direct model
-API client or API-key fallback. It consumes subscription quota; no token-budget
-stop or dollar-cost estimator is implemented.
+Execution defaults to **Claude Code `2.1.303` on the claude.ai subscription** (`--harness claude`; no API credit). API-key billing needs `--harness claude-api --allow-api-billing`. The Codex harness (`gpt-6-luna`, Codex CLI `0.163.0`) remains available.
+Subscription runs consume plan usage, not API credit, and have no dollar cap; there is
+never an API-key fallback. See the [running guide](docs/running.md#default-harness-claude-code-on-the-subscription).
 
 The [six-task report](docs/results/2026-10-19-personal-six-task.md) records all
 12 agent runs. Kitsune's total input was only 0.61% higher, while its raw elapsed

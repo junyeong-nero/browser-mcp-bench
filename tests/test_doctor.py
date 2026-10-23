@@ -102,7 +102,7 @@ class DoctorTests(unittest.TestCase):
             with patch("kitsune_benchmark.__main__.diagnose", return_value=report) as mocked:
                 out = io.StringIO()
                 with redirect_stdout(out):
-                    code = main(["doctor", "--codex", "/custom/codex", "--codex-home", "/home", "--json"])
+                    code = main(["doctor", "--harness", "codex", "--codex", "/custom/codex", "--codex-home", "/home", "--json"])
                 self.assertEqual(code, expected)
                 self.assertEqual(json.loads(out.getvalue()), report)
                 mocked.assert_called_once_with("/custom/codex", "/home")

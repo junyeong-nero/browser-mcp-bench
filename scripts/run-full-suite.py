@@ -8,8 +8,14 @@ playwright / --targets kitsune), each with its own fixture server, ports, profil
 Both targets then share the machine, so elapsed time and CPU/RSS are measured under that contention.
 --sequential restores one process per track with paired, Playwright-first runs. MiniWoB (one pair) is sequential.
 
-usage: uv run --locked python scripts/run-full-suite.py --model claude-opus-5-5 --budget-usd 100 \
-           --max-budget-usd-per-run 5 --kitsune-project artifacts/vendor/kitsune-pinned --out artifacts/opus-full
+The default harness is `claude`: Claude Code on the claude.ai subscription login, which spends no API
+credit and has no dollar cap. API-key harnesses (`claude-api`, `claude-api-full`) bill ANTHROPIC_API_KEY
+credit and need --allow-api-billing plus --budget-usd and --max-budget-usd-per-run.
+
+usage: uv run --locked python scripts/run-full-suite.py --model claude-opus-5-5 \
+           --kitsune-project artifacts/vendor/kitsune-pinned --out artifacts/opus-full
+       uv run --locked python scripts/run-full-suite.py --harness claude-api --allow-api-billing \
+           --model claude-opus-5-5 --budget-usd 100 --max-budget-usd-per-run 5 ...
 """
 
 from __future__ import annotations
@@ -43,15 +49,25 @@ def git_identity(project: str | Path, match: str | None = None) -> dict:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", required=True)
-    parser.add_argument("--budget-usd", type=float, required=True)
-    parser.add_argument("--max-budget-usd-per-run", type=float, required=True)
+    parser.add_argument("--budget-usd", type=float, help="API-key harnesses only: total suite cap")
+    parser.add_argument("--max-budget-usd-per-run", type=float, help="API-key harnesses only: per-run cap")
     parser.add_argument("--kitsune-project", required=True)
-    parser.add_argument("--harness", default="claude-api")
+    parser.add_argument("--harness", default="claude", choices=("claude", "codex", "claude-api", "claude-api-full"))
+    parser.add_argument("--allow-api-billing", action="store_true",
+                        help="Confirm that an API-key harness may spend ANTHROPIC_API_KEY credit")
     parser.add_argument("--out", required=True)
     parser.add_argument("--spent-usd", type=float, default=0.0, help="Already spent toward the budget")
     parser.add_argument("--sequential", action="store_true",
                         help="One process per track running paired targets in turn, instead of the two in parallel")
     args = parser.parse_args()
+    api = args.harness in ("claude-api", "claude-api-full")
+    if api and not args.allow_api_billing:
+        parser.error(f"--harness {args.harness} bills API credit; pass --allow-api-billing, or use the default "
+                     "--harness claude (subscription).")
+    if api and (args.budget_usd is None or args.max_budget_usd_per_run is None):
+        parser.error("API-key harnesses need --budget-usd and --max-budget-usd-per-run.")
+    if not api and (args.budget_usd is not None or args.max_budget_usd_per_run is not None):
+        parser.error("--budget-usd/--max-budget-usd-per-run apply only to API-key harnesses.")
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
     spent = args.spent_usd
@@ -65,24 +81,28 @@ def main() -> int:
     (out / "suite-manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
     log = out / "suite-log.jsonl"
     for name, argv in commands():
-        remaining = args.budget_usd - spent
-        worst_pair = 2 * args.max_budget_usd_per_run
-        if remaining < worst_pair:
+        remaining = args.budget_usd - spent if api else None
+        worst_pair = 2 * args.max_budget_usd_per_run if api else 0.0
+        if api and remaining < worst_pair:
             entries = [{"name": name, "skipped": "budget", "spent_usd": spent}]
         else:
             base = [sys.executable, "-m", "kitsune_benchmark", *argv, "--harness", args.harness,
-                    "--claude-model", args.model, "--max-budget-usd-per-run", str(args.max_budget_usd_per_run),
+                    *(["--claude-model", args.model] if args.harness != "codex" else []),
+                    *(["--max-budget-usd-per-run", str(args.max_budget_usd_per_run), "--allow-api-billing"] if api else []),
                     "--kitsune-project", args.kitsune_project, "--execute"]
             parallel = not args.sequential and name != "miniwob"
+            def budget(amount):
+                return ["--budget-usd", str(round(amount, 6))] if api else []
             if parallel:
                 # Each half may start a run only while its own share covers that run's worst case.
-                share = remaining / 2
-                jobs = [(f"{name}-{target}", base + ["--targets", target, "--budget-usd", str(round(share, 6))])
+                share = remaining / 2 if api else 0.0
+                jobs = [(f"{name}-{target}", base + ["--targets", target, *budget(share)])
                         for target in ("playwright", "kitsune")]
             else:
-                jobs = [(name, base + (["--budget-usd", str(round(remaining, 6))] if name != "miniwob" else []))]
+                jobs = [(name, base + (budget(remaining) if name != "miniwob" else []))]
             started = time.time()
-            print(f"[{time.strftime('%H:%M:%S')}] {name}: remaining ${remaining:.2f}"
+            print(f"[{time.strftime('%H:%M:%S')}] {name}: "
+                  + (f"remaining ${remaining:.2f}" if api else "subscription harness, no dollar cap")
                   + (" (targets in parallel)" if parallel else ""), flush=True)
             running = []
             for label, command in jobs:
@@ -98,7 +118,7 @@ def main() -> int:
                 except (OSError, ValueError):
                     result = {}
                 cost = result.get("estimated_cost_usd")
-                if cost is None and name == "miniwob":
+                if cost is None and name == "miniwob" and api:
                     cost = worst_pair  # not reported by the MiniWoB runner; count its worst case
                 spent += cost or 0.0
                 entries.append({"name": name, **({"target": label.rsplit("-", 1)[1]} if parallel else {}),
@@ -113,7 +133,8 @@ def main() -> int:
             print(json.dumps(entry), flush=True)
             with log.open("a") as handle:
                 handle.write(json.dumps(entry) + "\n")
-    print(f"done; estimated spend ${spent:.2f} of ${args.budget_usd:.2f}", flush=True)
+    print(f"done; estimated spend ${spent:.2f} of ${args.budget_usd:.2f}" if api
+          else "done; subscription harness (usage counts against the plan's limits, not API credit)", flush=True)
     return 0
 
 

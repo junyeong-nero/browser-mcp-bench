@@ -57,7 +57,17 @@ class CLITests(unittest.TestCase):
 
     def test_claude_overrides_rejected_for_codex(self):
         with redirect_stdout(io.StringIO()), self.assertRaises(SystemExit):
-            main(["personal", "--claude-model", "claude-opus-5-5"])
+            main(["personal", "--harness", "codex", "--claude-model", "claude-opus-5-5"])
+
+    def test_subscription_harness_is_default_and_api_billing_needs_opt_in(self):
+        out = io.StringIO()
+        with redirect_stdout(out):
+            self.assertEqual(main(["personal"]), 0)
+        self.assertEqual(json.loads(out.getvalue())["harness"], "claude")
+        for harness in ("claude-api", "claude-api-full"):
+            with self.subTest(harness=harness), redirect_stdout(io.StringIO()), \
+                    patch("subprocess.Popen", side_effect=AssertionError("no process")), self.assertRaises(SystemExit):
+                main(["personal", "--harness", harness, "--execute"])
 
     def test_override_leaves_config_untouched(self):
         from kitsune_benchmark.adapter import with_claude_overrides

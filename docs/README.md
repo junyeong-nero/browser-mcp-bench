@@ -30,8 +30,9 @@ already-open tabs and a pre-established test session.
 | **Read-only smoke** | Browser/MCP connectivity and native-tool smoke | Example Domain task; no external task-success grader | One completed historical `gpt-6.1-sol` pair, 2026-10-18 |
 | **WebArena / live personal accounts** | Future realistic/multi-step tracks | Not provisioned or implemented | No results |
 
-Current execution configs request **`gpt-6-luna`, reasoning `medium`, Codex CLI
-`0.163.0`**. Model availability and quota can change. A completed simple task
+Execution defaults to **Claude Code on the claude.ai subscription** (`--harness claude`, no
+API credit); API billing is opt-in (`--harness claude-api --allow-api-billing`). The Codex harness
+(`gpt-6-luna`, CLI `0.163.0`) remains available. Model availability and quota can change. A completed simple task
 pair is not a general success rate, tool ranking or security certification.
 
 ## Guides and source of truth
