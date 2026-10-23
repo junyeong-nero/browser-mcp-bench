@@ -3,6 +3,11 @@
 Each track command gets the remaining budget via --budget-usd, so the suite as a whole never starts a pair
 whose worst case would exceed it. A failed or stopped command is logged and the next one still runs.
 
+By default the personal and gallery tracks run Playwright and Kitsune as two concurrent processes (--targets
+playwright / --targets kitsune), each with its own fixture server, ports, profiles and half the remaining budget.
+Both targets then share the machine, so elapsed time and CPU/RSS are measured under that contention.
+--sequential restores one process per track with paired, Playwright-first runs. MiniWoB (one pair) is sequential.
+
 usage: uv run --locked python scripts/run-full-suite.py --model claude-opus-5-5 --budget-usd 100 \
            --max-budget-usd-per-run 5 --kitsune-project artifacts/vendor/kitsune-pinned --out artifacts/opus-full
 """
@@ -44,6 +49,8 @@ def main() -> int:
     parser.add_argument("--harness", default="claude-api")
     parser.add_argument("--out", required=True)
     parser.add_argument("--spent-usd", type=float, default=0.0, help="Already spent toward the budget")
+    parser.add_argument("--sequential", action="store_true",
+                        help="One process per track running paired targets in turn, instead of the two in parallel")
     args = parser.parse_args()
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
@@ -53,40 +60,59 @@ def main() -> int:
                 "kitsune_project": str(Path(args.kitsune_project).resolve()),
                 "kitsune": git_identity(args.kitsune_project),
                 "taskset": git_identity(Path(__file__).resolve().parent.parent, "taskset-*"),
-                "started": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "commands": [name for name, _ in commands()]}
+                "started": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+                "targets_in_parallel": not args.sequential, "commands": [name for name, _ in commands()]}
     (out / "suite-manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
     log = out / "suite-log.jsonl"
     for name, argv in commands():
         remaining = args.budget_usd - spent
         worst_pair = 2 * args.max_budget_usd_per_run
         if remaining < worst_pair:
-            entry = {"name": name, "skipped": "budget", "spent_usd": spent}
+            entries = [{"name": name, "skipped": "budget", "spent_usd": spent}]
         else:
-            full = [sys.executable, "-m", "kitsune_benchmark", *argv, "--harness", args.harness,
+            base = [sys.executable, "-m", "kitsune_benchmark", *argv, "--harness", args.harness,
                     "--claude-model", args.model, "--max-budget-usd-per-run", str(args.max_budget_usd_per_run),
                     "--kitsune-project", args.kitsune_project, "--execute"]
-            if name != "miniwob":
-                full += ["--budget-usd", str(round(remaining, 6))]
+            parallel = not args.sequential and name != "miniwob"
+            if parallel:
+                # Each half may start a run only while its own share covers that run's worst case.
+                share = remaining / 2
+                jobs = [(f"{name}-{target}", base + ["--targets", target, "--budget-usd", str(round(share, 6))])
+                        for target in ("playwright", "kitsune")]
+            else:
+                jobs = [(name, base + (["--budget-usd", str(round(remaining, 6))] if name != "miniwob" else []))]
             started = time.time()
-            print(f"[{time.strftime('%H:%M:%S')}] {name}: remaining ${remaining:.2f}", flush=True)
-            with (out / f"{name}.json").open("w") as stdout, (out / f"{name}.err").open("w") as stderr:
-                code = subprocess.run(full, stdout=stdout, stderr=stderr).returncode
-            try:
-                result = json.loads((out / f"{name}.json").read_text())
-            except (OSError, ValueError):
-                result = {}
-            cost = result.get("estimated_cost_usd")
-            if cost is None and name == "miniwob":
-                cost = worst_pair  # not reported by the MiniWoB runner; count its worst case
-            spent += cost or 0.0
-            entry = {"name": name, "exit": code, "seconds": round(time.time() - started, 1),
-                     "cost_usd": cost, "spent_usd": round(spent, 6),
-                     "attempted_pairs": result.get("attempted_pairs"), "requested_pairs": result.get("requested_pairs"),
-                     "completed_pairs": result.get("completed_pairs"), "stopped_reason": result.get("stopped_reason"),
-                     "suite_summary_path": result.get("suite_summary_path")}
-        print(json.dumps(entry), flush=True)
-        with log.open("a") as handle:
-            handle.write(json.dumps(entry) + "\n")
+            print(f"[{time.strftime('%H:%M:%S')}] {name}: remaining ${remaining:.2f}"
+                  + (" (targets in parallel)" if parallel else ""), flush=True)
+            running = []
+            for label, command in jobs:
+                stdout, stderr = (out / f"{label}.json").open("w"), (out / f"{label}.err").open("w")
+                running.append((label, subprocess.Popen(command, stdout=stdout, stderr=stderr), stdout, stderr))
+            entries = []
+            for label, process, stdout, stderr in running:
+                code = process.wait()
+                stdout.close()
+                stderr.close()
+                try:
+                    result = json.loads((out / f"{label}.json").read_text())
+                except (OSError, ValueError):
+                    result = {}
+                cost = result.get("estimated_cost_usd")
+                if cost is None and name == "miniwob":
+                    cost = worst_pair  # not reported by the MiniWoB runner; count its worst case
+                spent += cost or 0.0
+                entries.append({"name": name, **({"target": label.rsplit("-", 1)[1]} if parallel else {}),
+                                "exit": code, "seconds": round(time.time() - started, 1),
+                                "cost_usd": cost, "spent_usd": round(spent, 6),
+                                "attempted_pairs": result.get("attempted_pairs"),
+                                "requested_pairs": result.get("requested_pairs"),
+                                "completed_pairs": result.get("completed_pairs"),
+                                "stopped_reason": result.get("stopped_reason"),
+                                "suite_summary_path": result.get("suite_summary_path")})
+        for entry in entries:
+            print(json.dumps(entry), flush=True)
+            with log.open("a") as handle:
+                handle.write(json.dumps(entry) + "\n")
     print(f"done; estimated spend ${spent:.2f} of ${args.budget_usd:.2f}", flush=True)
     return 0
 

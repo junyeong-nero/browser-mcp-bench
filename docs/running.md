@@ -109,6 +109,13 @@ values actually used. `doctor --claude-model ID` validates that model for free.
 gallery 21 × 3 variants × 2 layouts, MiniWoB) under one total `--budget-usd`, and
 writes `suite-manifest.json` with the Kitsune revision and `git describe` so the
 result can be filed under [its Kitsune version](results/kitsune-versions.md).
+By default each personal/gallery track runs Playwright and Kitsune as two
+concurrent `--targets` processes with half the remaining budget each (about half
+the wall time; elapsed and CPU/RSS are then measured under shared load, and the
+suite log has one entry per target). `--sequential` restores paired,
+Playwright-first runs in one process. A Playwright-only process starts no Kitsune
+bridge or browser. `scripts/analyze-per-tool.py <out>` compares the two targets
+tool by tool (calls, errors, latency, response size, grouped error texts).
 
 ```sh
 uv run --locked python scripts/run-full-suite.py --model claude-opus-5-5 --budget-usd 100 \

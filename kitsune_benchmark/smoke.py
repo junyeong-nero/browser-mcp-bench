@@ -229,14 +229,16 @@ def run_pair(*, execute: bool = False, kitsune_project: str | None = None,
                 terminate_group(process)
             stack.callback(cleanup)
             return process
-        bridge = spawn(["uv", "run", "--locked", "--project", str(project),
-                        "python", "-m", "kitsune.bridge"], "bridge.log", "bridge")
-        await_bridge(http_port, env["KITSUNE_TOKEN"], bridge)
-        browser = spawn([str(web_ext), "run", "--no-config-discovery", "--no-input",
-            "--source-dir", str(pair_dir / "extension"), "--artifacts-dir", str(pair_dir / "web-ext"),
-            "--firefox", str(firefox), "--no-reload", "--start-url", "about:blank",
-            "--args=-headless", "--args=--width=1280", "--args=--height=720"], "firefox.log", "browser_launcher")
-        await_bridge(http_port, env["KITSUNE_TOKEN"], browser, extension=True)
+        # A Playwright-only run (e.g. one half of a parallel suite) starts no Kitsune bridge or browser.
+        if "kitsune" in specs:
+            bridge = spawn(["uv", "run", "--locked", "--project", str(project),
+                            "python", "-m", "kitsune.bridge"], "bridge.log", "bridge")
+            await_bridge(http_port, env["KITSUNE_TOKEN"], bridge)
+            browser = spawn([str(web_ext), "run", "--no-config-discovery", "--no-input",
+                "--source-dir", str(pair_dir / "extension"), "--artifacts-dir", str(pair_dir / "web-ext"),
+                "--firefox", str(firefox), "--no-reload", "--start-url", "about:blank",
+                "--args=-headless", "--args=--width=1280", "--args=--height=720"], "firefox.log", "browser_launcher")
+            await_bridge(http_port, env["KITSUNE_TOKEN"], browser, extension=True)
         resources.set_phase("ready")
         time.sleep(1)
         # Scope these values to this Python process and its children only.
