@@ -10,6 +10,7 @@ For the same reports grouped by Kitsune revision, see
 
 | Date | Report | Model | Scope and outcome |
 | --- | --- | --- | --- |
+| 2026-10-23 | [Opus full suite, Kitsune v0.3.1](2026-10-23-opus-full-v0.3.1.md) | `claude-opus-5-5`, medium (Claude Code API, bare) | `taskset-v1.2` (same 23-tool allowlist), 398 scorable runs, $31.67: personal 72/72 PW vs 71/72 Kitsune; crowded 63/63 vs 61/63, isolated 62/63 vs 60/63; Kitsune 1.3–1.7× calls on joint successes; snapshot lacks text/link URLs, Playwright selector syntax unsupported, hover does not scroll |
 | 2026-10-23 | [Opus full suite, Kitsune v0.3.0](2026-10-23-opus-full-v0.3.0.md) | `claude-opus-5-5`, medium (Claude Code API, bare) | `taskset-v1`, 398 scorable runs, $27.98: personal 67/72 PW vs 68/72 Kitsune; gallery crowded 63/63 vs 60/63, isolated 63/63 vs 57/63; Kitsune cost ×0.67 on crowded; snapshot drops `img`, lean lacks keypress; two grader defects |
 | 2026-10-22 | [Tool usage inventory](2026-10-22-tool-usage.md) | Offline, 196 existing Kitsune runs | 2,084 agent calls; exposure-aware counts and error categories; status/page-info candidates for default-surface ablation, not API removal |
 | 2026-10-22 | [Sonnet / Opus targeted follow-up](2026-10-22-sonnet-opus-target-view.md) | Sonnet 5.5 / Opus 5.5, medium (Claude Code API, bare) | 16 scorable runs in 4m37s; catalog requests −13.8% / −11.8%, elapsed −8.5% / −17.3%, but cost +15.1% / +13.5%; no-model probe confirms video screenshot(ref) failure |

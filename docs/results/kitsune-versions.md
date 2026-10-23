@@ -12,7 +12,8 @@ when model, harness and tasks match.
 
 | Kitsune | Revisions | Reports |
 | --- | --- | --- |
-| **v0.3.0** | `99a90d2` (tag); `d616c50` = v0.3.0 + docs/agents only (`server.py` comment change) | Opus full suite (2026-10-23; `taskset-v1`), 2026-10-22 rerun, disclosure, target view, Sonnet/Opus, integrated startup, tool usage |
+| **v0.3.1** | `4ad65ee` (tag) | Opus full suite (2026-10-23; `taskset-v1.2`) |
+| v0.3.0 | `99a90d2` (tag); `d616c50` = v0.3.0 + docs/agents only (`server.py` comment change) | Opus full suite (2026-10-23; `taskset-v1`), 2026-10-22 rerun, disclosure, target view, Sonnet/Opus, integrated startup, tool usage |
 | v0.2.1 → v0.3.0 (main) | `9d36c57`, `1045a5e`, `cf24851`, `56bd5d9`, `753406b` | 2026-10-21 personal 24, token efficiency, gallery |
 | v0.1.0 → v0.2.0 (main) | `967dfdf`, `68f7e97` | 2026-10-18 smoke and MiniWoB, 2026-10-19 personal pilots |
 
@@ -72,6 +73,15 @@ together with the next Kitsune release:
 
 Steps 1 and 3 are observations; a claim that the release is better on some metric
 still goes through a `hypothesis` issue.
+
+## v0.3.1
+
+`4ad65ee5023803a1757541dacafcd049ebf6fa9f`. Publishes Playwright MCP 0.0.83's 25 default tools under
+their names and schemas; tool presets removed.
+
+| Date | Report | Model / harness | Kitsune revision | Notes |
+| --- | --- | --- | --- | --- |
+| 2026-10-23 | [Opus full suite](2026-10-23-opus-full-v0.3.1.md) | `claude-opus-5-5`, Claude Code API bare | `4ad65ee` (`v0.3.1`) | `taskset-v1.2`; personal 72/72 vs 71/72, gallery crowded 63/63 vs 61/63, isolated 62/63 vs 60/63 (Playwright vs Kitsune) |
 
 ## v0.3.0
 
