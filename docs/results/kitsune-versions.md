@@ -68,11 +68,27 @@ together with the next Kitsune release:
 
 1. Run the new release on `taskset-v1` first, for continuity with this table.
 2. Freeze `taskset-v2` (harder tasks, repeated trials, counterbalanced order).
+   The draft [coexistence track](../coexistence.md) is its candidate content for
+   Kitsune's own promises: user-owned seeding and view telemetry over the v1 tasks,
+   a typing user, and specified delegation/recovery tasks. It imports the v1
+   fixtures, graders and relay without changing them. `smoke.run_pair` gained
+   opt-in `kitsune_env`/`kitsune_firefox_args`/`kitsune_firefox_prefs` arguments
+   whose defaults leave every v1 launch unchanged.
 3. Run both the previous release and the new one on `taskset-v2`, so the new
    taskset has its own baseline.
 
 Steps 1 and 3 are observations; a claim that the release is better on some metric
 still goes through a `hypothesis` issue.
+
+## v0.4.0
+
+`a03df442f92d74de47d0c500de2b625d34765e27`. Snapshot text/link URLs restored, Playwright selector forms,
+hover scroll (#226); capability groups regrouped (#228); tool gateway (#229); `KITSUNE_CAPS` enforced on
+bridge routes (#231); tab-less tools run on the current tab (#233).
+
+| Date | Report | Model / harness | Kitsune revision | Notes |
+| --- | --- | --- | --- | --- |
+| 2026-10-24 | [Opus full suite + coexistence](2026-10-24-opus-full-v0.4.0.md) | `claude-opus-5-5`, Claude Code API bare | `a03df44` (`v0.4.0`) | `taskset-v1.2` (upgrade step 1); personal 72/72 vs 69/72, gallery crowded 63/63 vs 62/63, isolated 62/63 vs 60/63 (Playwright vs Kitsune); `fill_form` checkbox regression; coexistence v3 user view 2/24 vs 23/24 |
 
 ## v0.3.1
 
@@ -82,6 +98,7 @@ their names and schemas; tool presets removed.
 | Date | Report | Model / harness | Kitsune revision | Notes |
 | --- | --- | --- | --- | --- |
 | 2026-10-23 | [Opus full suite](2026-10-23-opus-full-v0.3.1.md) | `claude-opus-5-5`, Claude Code API bare | `4ad65ee` (`v0.3.1`) | `taskset-v1.2`; personal 72/72 vs 71/72, gallery crowded 63/63 vs 61/63, isolated 62/63 vs 60/63 (Playwright vs Kitsune) |
+| 2026-10-23 | [Coexistence draft](2026-10-23-coexistence-user-seeded.md) | `claude-opus-5-5`, Claude Code API bare | `4ad65ee` (`v0.3.1`) | Draft track (not a taskset tag): user-seeded personal v1 24/24 both, v3 user view 2/24 vs 24/24; `co-typing-01` 87 vs 0 misdirected keystrokes |
 
 ## v0.3.0
 
