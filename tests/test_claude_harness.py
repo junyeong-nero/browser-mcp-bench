@@ -155,7 +155,7 @@ class ClaudeHarnessTests(unittest.TestCase):
         self.assertEqual(replies[3]["content"][0]["text"], "browser_tabs")
 
     def test_config_pins(self):
-        self.assertEqual(harness_pins(config(), "claude"), ("claude-haiku-5-5", "medium"))
+        self.assertEqual(harness_pins(config(), "claude"), ("claude-opus-5-5", "medium"))
         self.assertEqual(harness_pins(config(), "codex")[0], config()["model"])
         with self.assertRaises(ValueError):
             harness_pins({"claude_code": {"model": "m", "version": "0.0.1"}}, "claude")
@@ -349,7 +349,7 @@ class BenchmarkProtocolTests(unittest.TestCase):
         argv = command("/bin/claude", SERVER, "m", "i", api=True, max_budget_usd=0.5, bare=False)
         self.assertNotIn("--bare", argv)
         self.assertIn("--max-budget-usd", argv)
-        self.assertEqual(harness_pins(config(), "claude-api-full"), ("claude-haiku-5-5", "medium"))
+        self.assertEqual(harness_pins(config(), "claude-api-full"), ("claude-opus-5-5", "medium"))
         self.assertEqual(claude_budget(config(), "claude-api-full"), 0.5)
 
     def test_v2_contract_allows_closing_agent_tabs_only(self):

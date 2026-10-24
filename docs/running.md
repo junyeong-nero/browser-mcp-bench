@@ -69,13 +69,14 @@ command that automatically executes every upstream benchmark.
 `smoke`, `benchmark`, `personal`, `gallery`, `coexistence`, `doctor` and
 `scripts/run-full-suite.py` default to **`--harness claude`**. It runs **Claude Code
 `2.1.303`** on the existing **claude.ai subscription login**, with the model/effort
-from each config's `claude_code` block (`--claude-model` overrides it). Usage
+from each config's `claude_code` block (default `claude-opus-5-5`, effort `medium`;
+`--claude-model` overrides it). Usage
 counts against the plan's limits, **not API credit**, and there is no dollar cap.
 `ANTHROPIC_*`/provider variables are never inherited, so the `.env` key is not used.
 
 ```sh
 uv run --locked python -m kitsune_benchmark doctor          # checks the claude.ai login, no inference
-uv run --locked python -m kitsune_benchmark personal --claude-model claude-opus-5-5 --execute
+uv run --locked python -m kitsune_benchmark personal --execute   # claude-opus-5-5 by default
 ```
 
 Without `--bare` (which would disable the subscription login), Claude Code sends

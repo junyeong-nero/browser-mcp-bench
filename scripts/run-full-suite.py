@@ -12,7 +12,7 @@ The default harness is `claude`: Claude Code on the claude.ai subscription login
 credit and has no dollar cap. API-key harnesses (`claude-api`, `claude-api-full`) bill ANTHROPIC_API_KEY
 credit and need --allow-api-billing plus --budget-usd and --max-budget-usd-per-run.
 
-usage: uv run --locked python scripts/run-full-suite.py --model claude-opus-5-5 \
+usage: uv run --locked python scripts/run-full-suite.py \
            --kitsune-project artifacts/vendor/kitsune-pinned --out artifacts/opus-full
        uv run --locked python scripts/run-full-suite.py --harness claude-api --allow-api-billing \
            --model claude-opus-5-5 --budget-usd 100 --max-budget-usd-per-run 5 ...
@@ -48,7 +48,7 @@ def git_identity(project: str | Path, match: str | None = None) -> dict:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model", required=True)
+    parser.add_argument("--model", default="claude-opus-5-5", help="Claude model (default: claude-opus-5-5)")
     parser.add_argument("--budget-usd", type=float, help="API-key harnesses only: total suite cap")
     parser.add_argument("--max-budget-usd-per-run", type=float, help="API-key harnesses only: per-run cap")
     parser.add_argument("--kitsune-project", required=True)

@@ -170,9 +170,9 @@ track; add `--harness claude-api --allow-api-billing` only to spend API credit:
 
 ```sh
 # The coexistence fixture(s): 2 agent runs per task.
-uv run --locked python -m kitsune_benchmark coexistence --claude-model claude-opus-5-5 --execute
+uv run --locked python -m kitsune_benchmark coexistence --execute
 # All 24 personal tasks user-seeded (48 runs), then the Kitsune protection arm.
-uv run --locked python -m kitsune_benchmark coexistence --all-personal --claude-model claude-opus-5-5 --execute
+uv run --locked python -m kitsune_benchmark coexistence --all-personal --execute
 uv run --locked python -m kitsune_benchmark coexistence --all-personal --protect-user-tabs --targets kitsune --execute
 ```
 
