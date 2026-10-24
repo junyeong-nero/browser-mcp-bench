@@ -8,7 +8,7 @@ import hashlib
 import json
 from pathlib import Path
 
-from .adapter import write_json
+from .adapter import write_json, per_run_cap
 from .personal import PersonalServer, config as personal_config, selected_tasks, pair_complete, UI_TOOLS
 from .gallery import GalleryServer, config as gallery_config, select as gallery_tasks
 from .personal_session import NativeSession
@@ -74,7 +74,7 @@ def run(output: Path, project: Path, budget=2.0, execute=False):
             "personal_config": personal_config(), "gallery_config": gallery_config()}
     if not execute:
         return plan
-    if budget < max(spec["claude_code"]["max_budget_usd_per_run"] for spec in (personal_config(), gallery_config())):
+    if budget < max(per_run_cap(spec) for spec in (personal_config(), gallery_config())):
         raise ValueError("Budget below one run cap")
     source = source_revision(project)
     if source != {"revision": PIN, "dirty": False}:
@@ -88,7 +88,7 @@ def run(output: Path, project: Path, budget=2.0, execute=False):
     save()
     for item in plan["schedule"]:
         spec = personal_config() if item["track"] == "personal" else gallery_config()
-        cap = spec["claude_code"]["max_budget_usd_per_run"]
+        cap = per_run_cap(spec)
         if state["estimated_cost_usd"] + cap > budget:
             state["stopped_reason"] = "budget_reserve"
             break

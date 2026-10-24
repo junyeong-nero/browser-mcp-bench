@@ -9,7 +9,7 @@ import json
 from pathlib import Path
 import sys
 
-from .adapter import write_json
+from .adapter import write_json, per_run_cap
 from .personal import PersonalServer, config, selected_tasks, pair_complete, UI_TOOLS
 from .personal_session import NativeSession
 from .smoke import ROOT, run_pair, source_revision
@@ -63,7 +63,7 @@ def run(output: Path, project: Path, budget=2.0, execute=False):
     if budget <= 0:
         raise ValueError("Budget must be positive")
     spec = config()
-    per_run = spec["claude_code"]["max_budget_usd_per_run"]
+    per_run = per_run_cap(spec)
     plan = {"design": "2x2 disclosure x expect guidance", "schedule": schedule(),
             "harness": "claude-api", "kitsune_preset": "lean", "variant": 0,
             "budget_usd": budget, "max_budget_usd_per_run": per_run,

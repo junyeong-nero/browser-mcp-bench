@@ -141,14 +141,24 @@ def with_claude_overrides(spec: dict, model: str | None = None,
     return {**spec, "claude_code": pins}
 
 
+def per_run_cap(spec: dict) -> float:
+    """The per-run dollar cap: an explicit claude_code.max_budget_usd_per_run (the CLI override), else the
+    entry for the run's model in claude_code.max_budget_usd_per_run_by_model."""
+    pins = spec.get("claude_code") or {}
+    value = pins.get("max_budget_usd_per_run")
+    if value is None:
+        value = (pins.get("max_budget_usd_per_run_by_model") or {}).get(pins.get("model"))
+    if not isinstance(value, (int, float)) or isinstance(value, bool) or value <= 0:
+        raise ValueError(f"No per-run dollar cap for model {pins.get('model')!r}: add it to "
+                         "claude_code.max_budget_usd_per_run_by_model or pass --max-budget-usd-per-run.")
+    return float(value)
+
+
 def claude_budget(spec: dict, harness: str) -> float | None:
     """Per-run --max-budget-usd for API-key runs; subscription runs are not dollar-capped."""
     if harness not in API_HARNESSES:
         return None
-    value = spec.get("claude_code", {}).get("max_budget_usd_per_run")
-    if not isinstance(value, (int, float)) or isinstance(value, bool) or value <= 0:
-        raise ValueError("claude-api requires claude_code.max_budget_usd_per_run in the experiment config.")
-    return float(value)
+    return per_run_cap(spec)
 
 
 def claude_preflight(path: str, env: dict[str, str], *, api: bool = False, model: str | None = None) -> dict:

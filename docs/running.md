@@ -90,8 +90,11 @@ spend `ANTHROPIC_API_KEY` credit from the repository `.env` and refuse to execut
 without **`--allow-api-billing`**. Same Claude Code isolation, authenticated only by
 that key, with `--bare` so OAuth/keychain credentials are never read. User keys
 (`sk-ant-usr…`) also need a workspace: `ANTHROPIC_WORKSPACE_ID` in `.env`, or the
-key's only active workspace. Each run is capped by Claude Code `--max-budget-usd`
-(`claude_code.max_budget_usd_per_run`, 0.5 by default) and the audit requires
+key's only active workspace. Each run is capped by Claude Code `--max-budget-usd`, by model from
+`claude_code.max_budget_usd_per_run_by_model`: **Opus $1.00, Sonnet $0.50, Haiku $0.10**,
+just above the largest single run recorded through 2026-10-24 (Opus $0.76, Haiku $0.06;
+Sonnet scaled from 8 runs, max $0.06). `--max-budget-usd-per-run` overrides it; a model without
+an entry needs it and the audit requires
 `apiKeySource: ANTHROPIC_API_KEY`. `--budget-usd` stops before any pair whose
 worst case would exceed the suite total. `doctor --harness claude-api` validates
 the key, workspace and model with free `GET` requests.
@@ -131,8 +134,8 @@ tool by tool (calls, errors, latency, response size, grouped error texts).
 uv run --locked python scripts/run-full-suite.py --model claude-opus-5-5 \
   --kitsune-project artifacts/vendor/kitsune-pinned --out artifacts/opus-full
 # API credit, explicitly:
-uv run --locked python scripts/run-full-suite.py --harness claude-api --allow-api-billing --model claude-opus-5-5 \
-  --budget-usd 100 --max-budget-usd-per-run 5 --kitsune-project artifacts/vendor/kitsune-pinned --out artifacts/opus-full
+uv run --locked python scripts/run-full-suite.py --harness claude-api --allow-api-billing \
+  --budget-usd 60 --kitsune-project artifacts/vendor/kitsune-pinned --out artifacts/opus-full
 ```
 
 **A/B arms and a pinned Kitsune checkout.**

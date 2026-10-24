@@ -300,7 +300,7 @@ print({chr(10).join(json.dumps(e) for e in events)!r}.replace('@SOURCE@', source
             run(server, Task("t", "p"), "m", executable=path, confirm_isolated_browser=True, harness="claude-api")
 
     def test_budget_config_and_suite_stop(self):
-        self.assertEqual(claude_budget(config(), "claude-api"), 0.5)
+        self.assertEqual(claude_budget(config(), "claude-api"), 1.0)  # opus default
         self.assertIsNone(claude_budget(config(), "claude"))
         with self.assertRaises(ValueError):
             claude_budget({"claude_code": {}}, "claude-api")
@@ -312,9 +312,9 @@ print({chr(10).join(json.dumps(e) for e in events)!r}.replace('@SOURCE@', source
             ok = {"benchmark_evaluation": {"scorable": True, "task_success": True}, "list_price_cost_usd": 0.2, "usage": {}}
             return {"pair_dir": folder, "results": {"playwright": dict(ok), "kitsune": dict(ok)}}
         with patch("kitsune_benchmark.personal.run_pair", side_effect=fake_pair):
-            # Worst case per pair is 2 x 0.5 = 1.0 and each pair really costs 0.4:
-            # pairs start at spent 0, 0.4, 0.8; the 4th would risk 1.2 + 1.0 > 2.0.
-            result = run_personal(execute=True, harness="claude-api", budget_usd=2.0)
+            # Worst case per pair is 2 x 1.0 (opus) = 2.0 and each pair really costs 0.4:
+            # pairs start at spent 0, 0.4, 0.8; the 4th would risk 1.2 + 2.0 > 3.0.
+            result = run_personal(execute=True, harness="claude-api", budget_usd=3.0)
         self.assertEqual(calls, ["claude-api"] * 3)
         self.assertEqual(result["stopped_reason"], "suite_budget")
         self.assertAlmostEqual(result["estimated_cost_usd"], 1.2)
@@ -325,7 +325,7 @@ print({chr(10).join(json.dumps(e) for e in events)!r}.replace('@SOURCE@', source
         with redirect_stdout(io.StringIO()) as out:
             self.assertEqual(main(["personal", "--harness", "claude-api", "--all", "--budget-usd", "30"]), 0)
         plan = json.loads(out.getvalue())
-        self.assertEqual((plan["worst_case_usd"], plan["suite_budget_usd"], plan["planned_model_runs"]), (24.0, 30.0, 48))
+        self.assertEqual((plan["worst_case_usd"], plan["suite_budget_usd"], plan["planned_model_runs"]), (48.0, 30.0, 48))
 
 
 class BenchmarkProtocolTests(unittest.TestCase):
@@ -350,7 +350,15 @@ class BenchmarkProtocolTests(unittest.TestCase):
         self.assertNotIn("--bare", argv)
         self.assertIn("--max-budget-usd", argv)
         self.assertEqual(harness_pins(config(), "claude-api-full"), ("claude-opus-5-5", "medium"))
-        self.assertEqual(claude_budget(config(), "claude-api-full"), 0.5)
+        self.assertEqual(claude_budget(config(), "claude-api-full"), 1.0)
+
+    def test_per_run_cap_follows_the_model_unless_overridden(self):
+        from kitsune_benchmark.adapter import per_run_cap, with_claude_overrides
+        for model, cap in (("claude-opus-5-5", 1.0), ("claude-sonnet-5-5", 0.5), ("claude-haiku-5-5", 0.1)):
+            self.assertEqual(per_run_cap(with_claude_overrides(config(), model)), cap)
+        self.assertEqual(per_run_cap(with_claude_overrides(config(), "claude-haiku-5-5", 2)), 2.0)
+        with self.assertRaisesRegex(ValueError, "--max-budget-usd-per-run"):
+            per_run_cap(with_claude_overrides(config(), "some-new-model"))
 
     def test_v2_contract_allows_closing_agent_tabs_only(self):
         from kitsune_benchmark.personal import PersonalServer, selected_tasks
@@ -371,7 +379,7 @@ class BenchmarkProtocolTests(unittest.TestCase):
 
     def test_targets_preset_and_revision_guard(self):
         plan = run_personal(task_ids=["pb-current-01"], harness="claude-api", targets=("kitsune",), kitsune_preset="lean")
-        self.assertEqual((plan["planned_model_runs"], plan["worst_case_usd"], plan["targets"]), (1, 0.5, ["kitsune"]))
+        self.assertEqual((plan["planned_model_runs"], plan["worst_case_usd"], plan["targets"]), (1, 1.0, ["kitsune"]))
         with self.assertRaises(ValueError):
             run_personal(task_ids=["pb-current-01"], targets=("chrome",))
         revisions = iter([{"revision": "a", "dirty": False}] * 4 + [{"revision": "b", "dirty": False}] * 4)
